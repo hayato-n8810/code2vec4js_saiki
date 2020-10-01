@@ -5,3 +5,8 @@
 **/.idea/**
 *.tar.gz
 **/log.txt
+
+__pycache__/
+tmp/
+*.log
+*.raw.txt
