@@ -1,0 +1,8 @@
+version: '3'
+services:
+    code2vec:
+        image: tensorflow/tensorflow:latest-gpu-py3
+        container_name: code2vec
+        volumes:
+            - ./:/code2vec/
+            - /Users/kazuya/GitHub/Script-for-Research/data_organization/data/jsPerf:/data
