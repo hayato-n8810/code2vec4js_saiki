@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:latest-gpu-py3
+FROM tensorflow/tensorflow:2.0.1-gpu-py3
 
 RUN apt-get update && apt-get upgrade -y &&\
     apt install -y nodejs npm
