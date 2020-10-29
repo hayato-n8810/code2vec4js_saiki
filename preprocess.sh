@@ -52,9 +52,12 @@ ORIGIN_HISTOGRAM_FILE=data/${DATASET_NAME}/${DATASET_NAME}.histo.ori.c2v
 PATH_HISTOGRAM_FILE=data/${DATASET_NAME}/${DATASET_NAME}.histo.path.c2v
 
 echo "validating"
-grep -E "^[a-zA-Z|]+\s" ${TRAIN_DATA_FILE} > ${TRAIN_DATA_FILE}
-grep -E "^[a-zA-Z|]+\s" ${VAL_DATA_FILE} > ${VAL_DATA_FILE}
-grep -E "^[a-zA-Z|]+\s" ${TEST_DATA_FILE} > ${TEST_DATA_FILE}
+grep -E "^[a-zA-Z|]+\s" ${TRAIN_DATA_FILE} > ${TRAIN_DATA_FILE}.tmp
+mv -f ${TRAIN_DATA_FILE}.tmp ${TRAIN_DATA_FILE}
+grep -E "^[a-zA-Z|]+\s" ${VAL_DATA_FILE} > ${VAL_DATA_FILE}.tmp
+mv -f ${VAL_DATA_FILE}.tmp ${VAL_DATA_FILE}
+grep -E "^[a-zA-Z|]+\s" ${TEST_DATA_FILE} > ${TEST_DATA_FILE}.tmp
+mv -f ${TEST_DATA_FILE}.tmp ${TEST_DATA_FILE}
 
 echo "Creating histograms from the training data"
 cat ${TRAIN_DATA_FILE} | cut -d' ' -f1 | awk '{n[$0]++} END {for (i in n) print i,n[i]}' > ${TARGET_HISTOGRAM_FILE}
