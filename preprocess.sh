@@ -51,6 +51,11 @@ TARGET_HISTOGRAM_FILE=data/${DATASET_NAME}/${DATASET_NAME}.histo.tgt.c2v
 ORIGIN_HISTOGRAM_FILE=data/${DATASET_NAME}/${DATASET_NAME}.histo.ori.c2v
 PATH_HISTOGRAM_FILE=data/${DATASET_NAME}/${DATASET_NAME}.histo.path.c2v
 
+echo "validating"
+grep -E "^[a-zA-Z|]+\s" ${TRAIN_DATA_FILE} > ${TRAIN_DATA_FILE}
+grep -E "^[a-zA-Z|]+\s" ${VAL_DATA_FILE} > ${VAL_DATA_FILE}
+grep -E "^[a-zA-Z|]+\s" ${TEST_DATA_FILE} > ${TEST_DATA_FILE}
+
 echo "Creating histograms from the training data"
 cat ${TRAIN_DATA_FILE} | cut -d' ' -f1 | awk '{n[$0]++} END {for (i in n) print i,n[i]}' > ${TARGET_HISTOGRAM_FILE}
 cat ${TRAIN_DATA_FILE} | cut -d' ' -f2- | tr ' ' '\n' | cut -d',' -f1,3 | tr ',' '\n' | awk '{n[$0]++} END {for (i in n) print i,n[i]}' > ${ORIGIN_HISTOGRAM_FILE}
