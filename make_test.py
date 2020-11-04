@@ -50,7 +50,11 @@ def work(page_id):
 
 
 args = sys.argv
-page_list = os.listdir('/data/js/')
+data_list = os.listdir('/data/js/')
+page_list = []
+
+with open('/data/target_pages.txt', 'r') as f:
+    page_list = [page_id for page_id in f.read().split('\n') if page_id in data_list]
 
 if __name__ == '__main__':
     with ProcessPoolExecutor() as executor:
