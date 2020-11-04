@@ -15,7 +15,7 @@ c2v_list = os.listdir(c2v_dir)
 target_pages = []
 with open('/data/target_pages.txt', 'r') as f:
     c2v_pages = [filename.split('.')[0] for filename in c2v_list if filename.endswith('.c2v')]
-    target_pages = [page_id + '.c2v' for page_id in f.read().split('\n') if page_id in c2v_pages]
+    target_pages = [page_id + '.test.c2v' for page_id in f.read().split('\n') if page_id in c2v_pages]
 
 if __name__ == '__main__':
     with ProcessPoolExecutor() as executor:
