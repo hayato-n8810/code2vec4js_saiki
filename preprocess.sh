@@ -21,7 +21,7 @@
 TRAIN_DIR=/data/js
 VAL_DIR=/data/sampling/val
 TEST_DIR=/data/sampling/test
-DATASET_NAME=js_dataset
+DATASET_NAME=js_dataset_min5
 MAX_CONTEXTS=200
 WORD_VOCAB_SIZE=1301136
 PATH_VOCAB_SIZE=911417
