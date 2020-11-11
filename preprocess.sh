@@ -18,7 +18,7 @@
 #   recommended to use a multi-core machine for the preprocessing 
 #   step and set this value to the number of cores.
 # PYTHON - python3 interpreter alias.
-TRAIN_DIR=/data/js
+TRAIN_DIR=/data/sampling/train
 VAL_DIR=/data/sampling/val
 TEST_DIR=/data/sampling/test
 DATASET_NAME=js_dataset_min5
