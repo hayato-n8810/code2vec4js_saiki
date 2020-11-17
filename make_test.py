@@ -3,6 +3,7 @@ import subprocess
 from concurrent.futures import ProcessPoolExecutor
 import sys
 import re
+import pandas as pd
 
 
 dataset_name = 'js_dataset'
@@ -55,6 +56,7 @@ page_list = []
 
 with open('/data/target_pages.txt', 'r') as f:
     page_list = [page_id for page_id in f.read().split('\n') if page_id in data_list]
+    page_list.extend([page_id for page_id in pd.read_csv('/data/target_revision.csv', header=0, usecols=['page_id'])['page_id'].values.tolist()])
 
 if __name__ == '__main__':
     with ProcessPoolExecutor() as executor:

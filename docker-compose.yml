@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    user: "${UID}:${GID}"
     container_name: code2vec
     volumes:
       - ./:/code2vec/
