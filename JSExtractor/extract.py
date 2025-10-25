@@ -27,6 +27,10 @@ def ParallelExtractDir(args, dir):
 def ExtractFeaturesForDir(args, dir, prefix):
     command = ['node', './JSExtractor/JSExtractor/dist/main.js', '--max_path_length', str(args.max_path_length),
                '--max_path_width', str(args.max_path_width), '--dir', dir]
+    
+    # --whole_file オプションを追加
+    if hasattr(args, 'whole_file') and args.whole_file:
+        command.append('--whole_file')
 
     # print command
     # os.system(command)
@@ -82,12 +86,17 @@ if __name__ == '__main__':
     parser.add_argument("-threads", "--num_threads", dest="num_threads", required=False, default=64)
     parser.add_argument("-dir", "--dir", dest="dir", required=False)
     parser.add_argument("-file", "--file", dest="file", required=False)
+    parser.add_argument("--whole_file", dest="whole_file", action="store_true", required=False, 
+                        help="Extract features from whole file instead of individual functions")
     args = parser.parse_args()
 
     if args.file is not None:
         command = 'node ./JSExtractor/JSExtractor/dist/main.js --max_path_length ' + \
                   str(args.max_path_length) + ' --max_path_width ' + str(args.max_path_width) + \
                   ' --file ' + args.file
+        # --whole_file オプションを追加
+        if args.whole_file:
+            command += ' --whole_file'
         os.system(command)
     elif args.dir is not None:
         subdirs = get_immediate_subdirectories(args.dir)
