@@ -10,3 +10,9 @@ __pycache__/
 tmp/
 *.log
 *.raw.txt
+
+# 別リポジトリ管理のため
+/JSExtractor/JSExtractor/
+
+# 対象データセット
+**/outputs/**
