@@ -6,7 +6,7 @@ services:
     container_name: code2vec4js
     volumes:
       - ./:/code2vec/
-      # - /mnt/data1/kazuya-s/dataset/data/jsPerf:/data
+      - /mnt/data1/hayato-n/dataset/data/jsPerf:/data
     # runtime: nvidia
     # environment:
     #   - NVIDIA_VISIBLE_DEVICES=all
