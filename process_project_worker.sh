@@ -59,7 +59,7 @@ for jsf in "${js_files[@]}"; do
       --whole_file \
       --max_path_length 8 \
       --max_path_width 2 \
-      > "$raw_file" 2>&1; then
+      > "$raw_file" 2>/dev/null; then
     echo "[ERROR] Extraction failed: $base_name"
     ((error_count++))
     rm -f "$raw_file"
@@ -67,13 +67,13 @@ for jsf in "${js_files[@]}"; do
   fi
   
   # Step 2: Validate
-  if ! grep -E "^[a-zA-Z|]+\s" "$raw_file" > "${raw_file}.tmp" 2>&1; then
+  if ! grep -E "^[a-zA-Z|]+\s" "$raw_file" > "${raw_file}.tmp" 2>/dev/null; then
     echo "[WARN] No valid lines after validation: $base_name"
     ((error_count++))
     rm -f "$raw_file" "${raw_file}.tmp"
     continue
   fi
-  mv -f "${raw_file}.tmp" "$raw_file"
+  mv -f "${raw_file}.tmp" "$raw_file" 2>/dev/null
   
   if [ ! -s "$raw_file" ]; then
     echo "[WARN] Empty after validation: $base_name"
@@ -92,7 +92,7 @@ for jsf in "${js_files[@]}"; do
       --word_histogram "$WORD_HISTO" \
       --path_histogram "$PATH_HISTO" \
       --target_histogram "$TARGET_HISTO" \
-      --output_name "${c2v_dir}/${base_name}" 2>&1; then
+      --output_name "${c2v_dir}/${base_name}" >/dev/null 2>&1; then
     echo "[ERROR] Preprocess failed: $base_name"
     ((error_count++))
     rm -f "$raw_file"
@@ -107,14 +107,29 @@ for jsf in "${js_files[@]}"; do
   fi
   
   # Step 4: Vectorize
-  if ! $PYTHON_BIN code2vec_only.py \
+  # Suppress TensorFlow and code2vec verbose output
+  # Timeout: 15 minutes (covers P99 of processing time)
+  export TF_CPP_MIN_LOG_LEVEL=3  # Suppress TensorFlow C++ warnings
+  
+  # Run with timeout using GNU timeout command
+  # - 900s = 15 minutes (recommended for production)
+  # - --kill-after=10s: Send SIGKILL if process doesn't terminate after SIGTERM
+  if ! timeout --kill-after=10s 900s $PYTHON_BIN code2vec_only.py \
       --load models/js_dataset_min5/saved_model_iter19.release \
       --test "$c2v_file" \
-      --export_code_vectors 2>&1; then
-    echo "[ERROR] Vectorization failed: $base_name"
+      --export_code_vectors >/dev/null 2>&1; then
+    exit_code=$?
+    if [ $exit_code -eq 124 ]; then
+      echo "[ERROR] Vectorization timeout (>15m): $base_name"
+    elif [ $exit_code -eq 137 ]; then
+      echo "[ERROR] Vectorization killed (OOM or forced): $base_name"
+    else
+      echo "[ERROR] Vectorization failed (exit code $exit_code): $base_name"
+    fi
     ((error_count++))
     continue
   fi
+  unset TF_CPP_MIN_LOG_LEVEL
   
   if [ -s "$vectors_file" ]; then
     mv -f "$vectors_file" "$out_vector"
