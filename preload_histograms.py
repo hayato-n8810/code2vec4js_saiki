@@ -6,6 +6,8 @@
 pickleファイルとして保存します。これにより、各ワーカープロセスは
 高速にヒストグラムをロードできます。
 
+Thread-safe: Uses exclusive file locking (fcntl.LOCK_EX) to prevent concurrent writes.
+
 Usage:
     python3 preload_histograms.py [dataset_name]
     
@@ -17,8 +19,43 @@ import sys
 import os
 import pickle
 import time
+import fcntl
+import tempfile
 from argparse import ArgumentParser
+from contextlib import contextmanager
 import common
+
+@contextmanager
+def exclusive_lock(lock_file_path):
+    """
+    Exclusive file lock context manager for safe cache writing.
+    
+    Prevents multiple processes from writing to the cache simultaneously.
+    Also blocks shared lock readers during cache generation.
+    
+    Args:
+        lock_file_path: Path to the lock file
+    """
+    lock_fd = None
+    try:
+        # Create lock file if it doesn't exist
+        lock_fd = open(lock_file_path, 'w')
+        
+        # Acquire exclusive lock (wait if necessary)
+        print(f'[INFO] Acquiring exclusive lock for cache generation...', file=sys.stderr)
+        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+        print(f'[INFO] Exclusive lock acquired', file=sys.stderr)
+        
+        yield lock_fd
+        
+    finally:
+        if lock_fd:
+            try:
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+                lock_fd.close()
+                print(f'[INFO] Exclusive lock released', file=sys.stderr)
+            except:
+                pass
 
 def preload_histograms(dataset_name, word_vocab_size, path_vocab_size, target_vocab_size):
     """
@@ -78,8 +115,10 @@ def preload_histograms(dataset_name, word_vocab_size, path_vocab_size, target_vo
     elapsed = time.time() - start_time
     print(f"      Loaded {len(target_to_count)} targets in {elapsed:.2f}s")
     
-    # Pickleファイルとして保存
+    # Pickleファイルとして保存（アトミック書き込み + 排他ロック）
     print(f"\n[INFO] Saving histogram cache to: {cache_file}")
+    lock_file = cache_file + '.lock'
+    
     start_time = time.time()
     cache_data = {
         'word_to_count': word_to_count,
@@ -91,8 +130,23 @@ def preload_histograms(dataset_name, word_vocab_size, path_vocab_size, target_vo
         'dataset_name': dataset_name
     }
     
-    with open(cache_file, 'wb') as f:
-        pickle.dump(cache_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # Use exclusive lock + atomic write for maximum safety
+    cache_dir = os.path.dirname(cache_file)
+    with exclusive_lock(lock_file):
+        # Write to temporary file first
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.pkl', dir=cache_dir)
+        try:
+            with os.fdopen(temp_fd, 'wb') as f:
+                pickle.dump(cache_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+            
+            # Atomic rename
+            os.replace(temp_path, cache_file)
+            
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise
     
     elapsed = time.time() - start_time
     cache_size_mb = os.path.getsize(cache_file) / (1024 * 1024)
@@ -100,6 +154,7 @@ def preload_histograms(dataset_name, word_vocab_size, path_vocab_size, target_vo
     print(f"\n[SUCCESS] Histogram cache created: {cache_file}")
     print(f"\n[INFO] Workers can now use this cache for fast loading")
     print(f"       Expected speedup: 10-50x faster than reading raw histograms")
+    print(f"       Thread-safe: Concurrent reads are safe with shared locks")
 
 if __name__ == '__main__':
     parser = ArgumentParser(description="Preload and cache histogram files")

@@ -4,13 +4,51 @@ import common
 import pickle
 import os
 import sys
+import fcntl
+from contextlib import contextmanager
 
 '''
 This script preprocesses the data from MethodPaths. It truncates methods with too many contexts,
 and pads methods with less paths with spaces.
 
 Optimization: Supports loading histograms from cache file for faster parallel execution.
+Thread-safe: Uses shared file locking (fcntl.LOCK_SH) for safe concurrent cache reads.
 '''
+
+@contextmanager
+def shared_lock(lock_file_path):
+    """
+    Shared file lock context manager for safe concurrent reads.
+    
+    Multiple processes can hold shared locks simultaneously for reading,
+    but shared locks are exclusive with write locks (LOCK_EX).
+    This prevents reading during cache regeneration while allowing parallel reads.
+    
+    Args:
+        lock_file_path: Path to the lock file
+    """
+    lock_fd = None
+    try:
+        # Create lock file if it doesn't exist
+        lock_fd = open(lock_file_path, 'w')
+        
+        # Acquire shared lock (non-blocking attempt with fallback)
+        try:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            # Lock is held by writer, wait for it
+            print(f'Waiting for cache lock...', file=sys.stderr)
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_SH)  # Blocking mode
+        
+        yield lock_fd
+        
+    finally:
+        if lock_fd:
+            try:
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+                lock_fd.close()
+            except:
+                pass
 
 
 def save_dictionaries(dataset_name, word_to_count, path_to_count, target_to_count,
@@ -89,8 +127,12 @@ def process_file(file_path, data_file_role, dataset_name, word_to_count, path_to
         raise
 
     print('File: ' + file_path)
-    print('Average total contexts: ' + str(float(sum_total) / total))
-    print('Average final (after sampling) contexts: ' + str(float(sum_sampled) / total))
+    if total > 0:
+        print('Average total contexts: ' + str(float(sum_total) / total))
+        print('Average final (after sampling) contexts: ' + str(float(sum_sampled) / total))
+    else:
+        print('Average total contexts: 0 (no valid examples)')
+        print('Average final (after sampling) contexts: 0 (no valid examples)')
     print('Total examples: ' + str(total))
     print('Empty examples: ' + str(empty))
     print('Max number of contexts per word: ' + str(max_unfiltered))
@@ -154,15 +196,24 @@ if __name__ == '__main__':
             cache_file = os.path.join(histo_dir, 'histogram_cache.pkl')
         
         if cache_file and os.path.exists(cache_file):
-            # Fast path: Load from cache
+            # Fast path: Load from cache with shared lock
+            lock_file = cache_file + '.lock'
             print(f'Loading histograms from cache: {cache_file}', file=sys.stderr)
+            
             try:
-                with open(cache_file, 'rb') as f:
-                    cache_data = pickle.load(f)
-                    word_to_count = cache_data['word_to_count']
-                    path_to_count = cache_data['path_to_count']
-                    target_to_count = cache_data['target_to_count']
-                    print(f'Loaded from cache: {len(word_to_count)} words, {len(path_to_count)} paths, {len(target_to_count)} targets', file=sys.stderr)
+                with shared_lock(lock_file):
+                    with open(cache_file, 'rb') as f:
+                        cache_data = pickle.load(f)
+                        word_to_count = cache_data.get('word_to_count', {})
+                        path_to_count = cache_data.get('path_to_count', {})
+                        target_to_count = cache_data.get('target_to_count', {})
+                        
+                        # Validate cache data is not empty
+                        if not word_to_count or not path_to_count or not target_to_count:
+                            print(f'Warning: Cache contains empty dictionaries, falling back to raw histograms', file=sys.stderr)
+                            cache_file = None
+                        else:
+                            print(f'Loaded from cache: {len(word_to_count)} words, {len(path_to_count)} paths, {len(target_to_count)} targets', file=sys.stderr)
             except Exception as e:
                 print(f'Warning: Failed to load cache ({e}), falling back to raw histograms', file=sys.stderr)
                 cache_file = None
