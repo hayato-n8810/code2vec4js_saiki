@@ -7,6 +7,14 @@ services:
     volumes:
       - ./:/code2vec/
       - /mnt/data1/hayato-n/dataset/data/jsPerf:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '35.0'     # 3500% CPU
+          memory: 64G      # Increased for parallel processing
+        reservations:
+          cpus: '20.0'     # Reserve at least 20 cores
+          memory: 32G
     # runtime: nvidia
     # environment:
     #   - NVIDIA_VISIBLE_DEVICES=all
