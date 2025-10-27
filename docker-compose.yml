@@ -10,10 +10,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '35.0'     # 3500% CPU
+          cpus: '48.0'     # Full server capacity (48 logical cores)
           memory: 64G      # Increased for parallel processing
         reservations:
-          cpus: '20.0'     # Reserve at least 20 cores
+          cpus: '36.0'     # Reserve at least 36 cores for parallel workload
           memory: 32G
     # runtime: nvidia
     # environment:

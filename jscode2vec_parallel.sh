@@ -30,7 +30,12 @@ if [ $# -lt 1 ] || [ $# -gt 2 ]; then
 fi
 
 TARGET_BASE_DIR="$1"
-MAX_PARALLEL_JOBS=${2:-10}  # Default: 10 parallel projects (each uses ~3-4 cores)
+#!/bin/bash
+set -e
+
+# Default parallel jobs (adjust based on available CPU cores)
+# Optimized for 48-core server: 12 jobs (conservative) or 15 jobs (aggressive)
+MAX_PARALLEL_JOBS=${2:-12}
 
 if [ ! -d "$TARGET_BASE_DIR" ]; then
   echo "[ERROR] Directory not found: $TARGET_BASE_DIR" >&2
