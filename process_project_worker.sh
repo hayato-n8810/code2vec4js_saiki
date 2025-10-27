@@ -16,6 +16,9 @@ log_file="${output_base}/process.log"
 
 mkdir -p "$c2v_dir" "$vector_dir" "$(dirname "$log_file")"
 
+# Save original stdout for progress reporting
+exec 3>&1
+
 # Redirect all output to log file
 exec > "$log_file" 2>&1
 
@@ -150,3 +153,6 @@ echo "  Success: $success_count"
 echo "  Skipped: $skip_count"
 echo "  Errors: $error_count"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] [END] $project_name"
+
+# Output completion marker to original stdout (fd 3) for progress tracking
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] [END] $project_name" >&3
