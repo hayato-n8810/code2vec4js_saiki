@@ -1,9 +1,13 @@
 import random
 from argparse import ArgumentParser
+import sys
+import os
+
+# Add parent directory to path for module imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import common
 import pickle
-import os
-import sys
 import fcntl
 from contextlib import contextmanager
 

@@ -16,6 +16,12 @@ Example:
         --export_code_vectors
 """
 
+import sys
+import os
+
+# Add parent directory to path for module imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from config import Config
 from model_base import Code2VecModelBase
 

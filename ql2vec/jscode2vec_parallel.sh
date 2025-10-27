@@ -71,7 +71,7 @@ PATH_VOCAB_SIZE=${PATH_VOCAB_SIZE:-911417}
 TARGET_VOCAB_SIZE=${TARGET_VOCAB_SIZE:-261245}
 
 DATASET_NAME=js_dataset_min5
-HISTO_DIR="data/${DATASET_NAME}"
+HISTO_DIR="/code2vec/data/${DATASET_NAME}"
 WORD_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.ori.c2v"
 PATH_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.path.c2v"
 TARGET_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.tgt.c2v"
@@ -95,7 +95,7 @@ if [ ! -f "$HISTOGRAM_CACHE" ]; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] [OPTIMIZATION] Preloading histograms (first time only)..."
   echo "[INFO] This will speed up parallel processing significantly"
   
-  if ! $PYTHON_BIN preload_histograms.py \
+  if ! $PYTHON_BIN /code2vec/ql2vec/preload_histograms.py \
       --dataset "$DATASET_NAME" \
       --word_vocab_size "$WORD_VOCAB_SIZE" \
       --path_vocab_size "$PATH_VOCAB_SIZE" \
@@ -128,7 +128,7 @@ echo "[INFO] Found ${#PROJECT_DIRS[@]} project(s)"
 # Process projects in parallel using GNU parallel and worker script
 printf '%s\n' "${PROJECT_DIRS[@]}" | \
   parallel -j "$MAX_PARALLEL_JOBS" --line-buffer \
-    ./process_project_worker.sh {}
+    /code2vec/ql2vec/process_project_worker.sh {}
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All projects processed"
 echo "[INFO] Check individual logs at: results/{project_name}/process.log"

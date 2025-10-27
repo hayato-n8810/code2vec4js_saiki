@@ -57,7 +57,7 @@ for jsf in "${js_files[@]}"; do
   fi
   
   # Step 1: Extract
-  if ! $PYTHON_BIN JSExtractor/extract.py \
+  if ! $PYTHON_BIN /code2vec/JSExtractor/extract.py \
       --file "$jsf" \
       --whole_file \
       --max_path_length 8 \
@@ -90,7 +90,7 @@ for jsf in "${js_files[@]}"; do
   preprocess_success=false
   
   for retry in $(seq 1 $MAX_RETRIES); do
-    if $PYTHON_BIN preprocess_test.py \
+    if $PYTHON_BIN /code2vec/ql2vec/preprocess_test.py \
         --test_data "$raw_file" \
         --max_contexts "$MAX_CONTEXTS" \
         --word_vocab_size "$WORD_VOCAB_SIZE" \
@@ -132,8 +132,8 @@ for jsf in "${js_files[@]}"; do
   # Run with timeout using GNU timeout command
   # - 900s = 15 minutes (recommended for production)
   # - --kill-after=10s: Send SIGKILL if process doesn't terminate after SIGTERM
-  if ! timeout --kill-after=10s 900s $PYTHON_BIN code2vec_only.py \
-      --load models/js_dataset_min5/saved_model_iter19.release \
+  if ! timeout --kill-after=10s 900s $PYTHON_BIN /code2vec/ql2vec/code2vec_only.py \
+      --load /code2vec/models/js_dataset_min5/saved_model_iter19.release \
       --test "$c2v_file" \
       --export_code_vectors >/dev/null 2>&1; then
     exit_code=$?

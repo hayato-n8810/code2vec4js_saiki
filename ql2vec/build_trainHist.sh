@@ -1,21 +1,21 @@
 
 DATASET_NAME=js_dataset_min5
-HISTO_DIR="data/${DATASET_NAME}"
+HISTO_DIR="/code2vec/data/${DATASET_NAME}"
 WORD_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.ori.c2v"
 PATH_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.path.c2v"
 TARGET_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.tgt.c2v"
 
-MODEL_DIR="/model/${DATASET_NAME}"
+MODEL_DIR="/code2vec/models/${DATASET_NAME}"
 
 # モデルの特性に合わせるため，学習時の語彙データを作成
 TRAIN_DIR=/data/sampling/train
 TRAIN_DATA_FILE=${DATASET_NAME}.train.raw.txt
-mkdir -p data
-mkdir -p data/${DATASET_NAME}
+mkdir -p /code2vec/data
+mkdir -p /code2vec/data/${DATASET_NAME}
 
 # 特徴抽出
 echo "Extracting paths from training set..."
-${PYTHON} JSExtractor/extract.py --dir ${TRAIN_DIR} --max_path_length 8 --max_path_width 2 | shuf > ${TRAIN_DATA_FILE}
+${PYTHON} /code2vec/JSExtractor/extract.py --dir ${TRAIN_DIR} --max_path_length 8 --max_path_width 2 | shuf > ${TRAIN_DATA_FILE}
 echo "Finished extracting paths from training set"
 # 整形
 echo "validating"

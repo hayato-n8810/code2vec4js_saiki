@@ -39,12 +39,12 @@ PATH_VOCAB_SIZE=${PATH_VOCAB_SIZE:-911417}
 TARGET_VOCAB_SIZE=${TARGET_VOCAB_SIZE:-261245}
 
 DATASET_NAME=js_dataset_min5
-HISTO_DIR="data/${DATASET_NAME}"
+HISTO_DIR="/code2vec/data/${DATASET_NAME}"
 WORD_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.ori.c2v"
 PATH_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.path.c2v"
 TARGET_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.tgt.c2v"
 
-MODEL_DIR="/model/${DATASET_NAME}"
+MODEL_DIR="/code2vec/models/${DATASET_NAME}"
 
 # 学習で用いた語彙データの存在を検証
 for f in "$WORD_HISTO" "$PATH_HISTO" "$TARGET_HISTO"; do
@@ -103,7 +103,7 @@ for jsf in "${JS_FILES[@]}"; do
 
   echo "[STEP] Extracting paths: $base_name"
   # Extract per-file features
-  if ! $PYTHON_BIN JSExtractor/extract.py \
+  if ! $PYTHON_BIN /code2vec/JSExtractor/extract.py \
       --file "$jsf" \
       --whole_file \
       --max_path_length 8 \
@@ -131,7 +131,7 @@ for jsf in "${JS_FILES[@]}"; do
   echo "[STEP] Preprocessing to MAX_CONTEXTS=$MAX_CONTEXTS"
   # Use base_name without extension for output_name
   # ベクトル化するために，code2vecの入力形式に合わせたデータに変換
-  if ! $PYTHON_BIN preprocess_test.py \
+  if ! $PYTHON_BIN /code2vec/ql2vec/preprocess_test.py \
       --test_data "$raw_file" \
       --max_contexts "$MAX_CONTEXTS" \
       --word_vocab_size "$WORD_VOCAB_SIZE" \
@@ -154,8 +154,8 @@ for jsf in "${JS_FILES[@]}"; do
   fi
 
   echo "[STEP] Exporting vectors"
-  if ! $PYTHON_BIN code2vec_only.py \
-      --load models/js_dataset_min5/saved_model_iter19.release \
+  if ! $PYTHON_BIN /code2vec/ql2vec/code2vec_only.py \
+      --load /code2vec/models/js_dataset_min5/saved_model_iter19.release \
       --test "$c2v_file" \
       --export_code_vectors; then
     echo "[ERROR] code2vec inference failed for: $base_name" >&2

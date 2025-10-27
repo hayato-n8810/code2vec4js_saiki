@@ -17,6 +17,10 @@ Example:
 
 import sys
 import os
+
+# Add parent directory to path for module imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import pickle
 import time
 import fcntl
@@ -61,7 +65,7 @@ def preload_histograms(dataset_name, word_vocab_size, path_vocab_size, target_vo
     """
     ヒストグラムを読み込み、pickleファイルとして保存
     """
-    histo_dir = f"data/{dataset_name}"
+    histo_dir = f"/code2vec/data/{dataset_name}"
     word_histo = f"{histo_dir}/{dataset_name}.histo.ori.c2v"
     path_histo = f"{histo_dir}/{dataset_name}.histo.path.c2v"
     target_histo = f"{histo_dir}/{dataset_name}.histo.tgt.c2v"
