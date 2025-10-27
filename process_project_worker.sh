@@ -85,18 +85,33 @@ for jsf in "${js_files[@]}"; do
     continue
   fi
   
-  # Step 3: Preprocess
-  if ! $PYTHON_BIN preprocess_test.py \
-      --test_data "$raw_file" \
-      --max_contexts "$MAX_CONTEXTS" \
-      --word_vocab_size "$WORD_VOCAB_SIZE" \
-      --path_vocab_size "$PATH_VOCAB_SIZE" \
-      --target_vocab_size "$TARGET_VOCAB_SIZE" \
-      --word_histogram "$WORD_HISTO" \
-      --path_histogram "$PATH_HISTO" \
-      --target_histogram "$TARGET_HISTO" \
-      --output_name "${c2v_dir}/${base_name}" >/dev/null 2>&1; then
-    echo "[ERROR] Preprocess failed: $base_name"
+  # Step 3: Preprocess (with retry mechanism)
+  MAX_RETRIES=3
+  preprocess_success=false
+  
+  for retry in $(seq 1 $MAX_RETRIES); do
+    if $PYTHON_BIN preprocess_test.py \
+        --test_data "$raw_file" \
+        --max_contexts "$MAX_CONTEXTS" \
+        --word_vocab_size "$WORD_VOCAB_SIZE" \
+        --path_vocab_size "$PATH_VOCAB_SIZE" \
+        --target_vocab_size "$TARGET_VOCAB_SIZE" \
+        --word_histogram "$WORD_HISTO" \
+        --path_histogram "$PATH_HISTO" \
+        --target_histogram "$TARGET_HISTO" \
+        --output_name "${c2v_dir}/${base_name}" 2>&1; then
+      preprocess_success=true
+      break
+    else
+      if [ $retry -lt $MAX_RETRIES ]; then
+        echo "[RETRY $retry/$MAX_RETRIES] Preprocess failed, retrying: $base_name"
+        sleep 1
+      fi
+    fi
+  done
+  
+  if [ "$preprocess_success" = false ]; then
+    echo "[ERROR] Preprocess failed after $MAX_RETRIES attempts: $base_name"
     ((error_count++))
     rm -f "$raw_file"
     continue

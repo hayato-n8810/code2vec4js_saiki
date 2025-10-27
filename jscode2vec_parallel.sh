@@ -30,12 +30,33 @@ if [ $# -lt 1 ] || [ $# -gt 2 ]; then
 fi
 
 TARGET_BASE_DIR="$1"
-#!/bin/bash
-set -e
 
 # Default parallel jobs (adjust based on available CPU cores)
-# Optimized for 48-core server: 12 jobs (conservative) or 15 jobs (aggressive)
-MAX_PARALLEL_JOBS=${2:-12}
+# Auto-detect available cores and use conservative setting
+if [ $# -ge 2 ]; then
+  MAX_PARALLEL_JOBS="$2"
+else
+  # Auto-detect CPU cores
+  if command -v nproc >/dev/null 2>&1; then
+    AVAILABLE_CORES=$(nproc)
+  elif command -v sysctl >/dev/null 2>&1; then
+    AVAILABLE_CORES=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+  else
+    AVAILABLE_CORES=4
+  fi
+  
+  # Use 60% of available cores (conservative, leaving headroom)
+  MAX_PARALLEL_JOBS=$((AVAILABLE_CORES * 60 / 100))
+  
+  # Ensure at least 2, at most 16
+  if [ "$MAX_PARALLEL_JOBS" -lt 2 ]; then
+    MAX_PARALLEL_JOBS=2
+  elif [ "$MAX_PARALLEL_JOBS" -gt 16 ]; then
+    MAX_PARALLEL_JOBS=16
+  fi
+  
+  echo "[INFO] Auto-detected $AVAILABLE_CORES CPU cores, using $MAX_PARALLEL_JOBS parallel jobs"
+fi
 
 if [ ! -d "$TARGET_BASE_DIR" ]; then
   echo "[ERROR] Directory not found: $TARGET_BASE_DIR" >&2
@@ -66,6 +87,27 @@ done
 # Export variables for worker script
 export PYTHON_BIN MAX_CONTEXTS WORD_VOCAB_SIZE PATH_VOCAB_SIZE TARGET_VOCAB_SIZE
 export WORD_HISTO PATH_HISTO TARGET_HISTO
+
+# ---------- Optimization: Preload histograms ----------
+HISTOGRAM_CACHE="${HISTO_DIR}/histogram_cache.pkl"
+
+if [ ! -f "$HISTOGRAM_CACHE" ]; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [OPTIMIZATION] Preloading histograms (first time only)..."
+  echo "[INFO] This will speed up parallel processing significantly"
+  
+  if ! $PYTHON_BIN preload_histograms.py \
+      --dataset "$DATASET_NAME" \
+      --word_vocab_size "$WORD_VOCAB_SIZE" \
+      --path_vocab_size "$PATH_VOCAB_SIZE" \
+      --target_vocab_size "$TARGET_VOCAB_SIZE"; then
+    echo "[WARN] Failed to create histogram cache, continuing with raw histograms" >&2
+    echo "[WARN] Parallel execution may be slower and less stable" >&2
+  else
+    echo "[INFO] Histogram cache created successfully: $HISTOGRAM_CACHE"
+  fi
+else
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] Using cached histograms: $HISTOGRAM_CACHE"
+fi
 
 # ---------- Main execution ----------
 
