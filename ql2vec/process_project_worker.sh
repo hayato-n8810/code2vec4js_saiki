@@ -86,7 +86,7 @@ for jsf in "${js_files[@]}"; do
   fi
   
   # Step 3: Preprocess (with retry mechanism)
-  MAX_RETRIES=3
+  MAX_RETRIES=2
   preprocess_success=false
   
   for retry in $(seq 1 $MAX_RETRIES); do
