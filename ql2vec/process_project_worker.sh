@@ -9,7 +9,7 @@ project_dir="$1"
 project_name=$(basename "$project_dir")
 
 # Setup output directories
-output_base="results/${project_name}"
+output_base="/code2vec/results/${project_name}"
 c2v_dir="${output_base}/c2v"
 vector_dir="${output_base}/vectors"
 log_file="${output_base}/process.log"

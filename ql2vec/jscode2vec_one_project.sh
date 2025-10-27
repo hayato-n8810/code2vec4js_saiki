@@ -58,7 +58,7 @@ done
 # ---------- Output directory setup ----------
 # Extract project name from target directory (e.g., /path/to/target_dir_js -> target_dir_js)
 PROJECT_NAME=$(basename "$TARGET_DIR_JS")
-OUTPUT_BASE_DIR="results/${PROJECT_NAME}"
+OUTPUT_BASE_DIR="/code2vec/results/${PROJECT_NAME}"
 C2V_OUTPUT_DIR="${OUTPUT_BASE_DIR}/c2v"
 VECTOR_OUTPUT_DIR="${OUTPUT_BASE_DIR}/vectors"
 

@@ -25,7 +25,7 @@ def ParallelExtractDir(args, dir):
 
 
 def ExtractFeaturesForDir(args, dir, prefix):
-    command = ['node', './JSExtractor/JSExtractor/dist/main.js', '--max_path_length', str(args.max_path_length),
+    command = ['node', '/code2vec/JSExtractor/JSExtractor/dist/main.js', '--max_path_length', str(args.max_path_length),
                '--max_path_width', str(args.max_path_width), '--dir', dir]
     
     # --whole_file オプションを追加
@@ -63,7 +63,7 @@ def ExtractFeaturesForDir(args, dir, prefix):
 
 def ExtractFeaturesForDirsList(args, dirs):
     global TMP_DIR
-    TMP_DIR = "./tmp/feature_extractor%d/" % (os.getpid())
+    TMP_DIR = "/code2vec/tmp/feature_extractor%d/" % (os.getpid())
     if os.path.exists(TMP_DIR):
         shutil.rmtree(TMP_DIR, ignore_errors=True)
     os.makedirs(TMP_DIR)
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.file is not None:
-        command = 'node ./JSExtractor/JSExtractor/dist/main.js --max_path_length ' + \
+        command = 'node /code2vec/JSExtractor/JSExtractor/dist/main.js --max_path_length ' + \
                   str(args.max_path_length) + ' --max_path_width ' + str(args.max_path_width) + \
                   ' --file ' + args.file
         # --whole_file オプションを追加
