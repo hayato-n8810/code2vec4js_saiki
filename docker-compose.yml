@@ -10,11 +10,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '48.0'     # Full server capacity (48 logical cores)
-          memory: 64G      # Increased for parallel processing
-        reservations:
-          cpus: '36.0'     # Reserve at least 36 cores for parallel workload
-          memory: 32G
+          cpus: '45.0'     # Full server capacity (48 logical cores)
+    #       memory: 64G      # Increased for parallel processing
+    #     reservations:
+    #       cpus: '36.0'     # Reserve at least 36 cores for parallel workload
+    #       memory: 32G
     # runtime: nvidia
     # environment:
     #   - NVIDIA_VISIBLE_DEVICES=all
