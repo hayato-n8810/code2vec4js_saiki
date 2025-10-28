@@ -192,50 +192,71 @@ if __name__ == '__main__':
             print(f'[ERROR] Test data file not found: {test_data_path}', file=sys.stderr)
             sys.exit(1)
 
-        # Try to load from cache first for faster parallel execution
-        cache_file = None
-        if word_histogram_path:
-            # Derive cache file path from histogram path
-            histo_dir = os.path.dirname(word_histogram_path)
-            cache_file = os.path.join(histo_dir, 'histogram_cache.pkl')
+        # REVOLUTIONARY: Try shared memory first (zero disk I/O)
+        word_to_count = None
+        path_to_count = None
+        target_to_count = None
         
-        if cache_file and os.path.exists(cache_file):
-            # Fast path: Load from cache with shared lock
-            lock_file = cache_file + '.lock'
-            print(f'Loading histograms from cache: {cache_file}', file=sys.stderr)
+        try:
+            # Import shared memory client
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            sys.path.insert(0, script_dir)
+            from histogram_shm_client import load_histograms_from_shared_memory
             
-            try:
-                with shared_lock(lock_file):
-                    with open(cache_file, 'rb') as f:
-                        cache_data = pickle.load(f)
-                        word_to_count = cache_data.get('word_to_count', {})
-                        path_to_count = cache_data.get('path_to_count', {})
-                        target_to_count = cache_data.get('target_to_count', {})
-                        
-                        # Validate cache data is not empty
-                        if not word_to_count or not path_to_count or not target_to_count:
-                            print(f'Warning: Cache contains empty dictionaries, falling back to raw histograms', file=sys.stderr)
-                            cache_file = None
-                        else:
-                            print(f'Loaded from cache: {len(word_to_count)} words, {len(path_to_count)} paths, {len(target_to_count)} targets', file=sys.stderr)
-            except Exception as e:
-                print(f'Warning: Failed to load cache ({e}), falling back to raw histograms', file=sys.stderr)
-                cache_file = None
+            word_to_count, path_to_count, target_to_count = load_histograms_from_shared_memory()
+        except Exception as e:
+            print(f'[INFO] Shared memory not available: {e}', file=sys.stderr)
+            word_to_count = None
         
-        if not cache_file or not os.path.exists(cache_file):
-            # Slow path: Load from raw histogram files
-            print('Loading histograms from raw files (consider running preload_histograms.py)', file=sys.stderr)
+        # If shared memory succeeded, skip cache/disk loading
+        if word_to_count is not None:
+            print(f'[SHM] Using shared memory histograms (zero disk I/O)', file=sys.stderr)
+        else:
+            # Fallback to cache or raw files
+            # Try to load from cache first for faster parallel execution
+            cache_file = None
+            if word_histogram_path:
+                # Derive cache file path from histogram path
+                histo_dir = os.path.dirname(word_histogram_path)
+                cache_file = os.path.join(histo_dir, 'histogram_cache.pkl')
             
-            # Validate histogram files exist
-            for histo_file in [word_histogram_path, path_histogram_path, args.target_histogram]:
-                if not os.path.exists(histo_file):
-                    print(f'[ERROR] Histogram file not found: {histo_file}', file=sys.stderr)
-                    sys.exit(1)
+            if cache_file and os.path.exists(cache_file):
+                # Fast path: Load from cache with shared lock
+                lock_file = cache_file + '.lock'
+                print(f'Loading histograms from cache: {cache_file}', file=sys.stderr)
+                
+                try:
+                    with shared_lock(lock_file):
+                        with open(cache_file, 'rb') as f:
+                            cache_data = pickle.load(f)
+                            word_to_count = cache_data.get('word_to_count', {})
+                            path_to_count = cache_data.get('path_to_count', {})
+                            target_to_count = cache_data.get('target_to_count', {})
+                            
+                            # Validate cache data is not empty
+                            if not word_to_count or not path_to_count or not target_to_count:
+                                print(f'Warning: Cache contains empty dictionaries, falling back to raw histograms', file=sys.stderr)
+                                cache_file = None
+                            else:
+                                print(f'Loaded from cache: {len(word_to_count)} words, {len(path_to_count)} paths, {len(target_to_count)} targets', file=sys.stderr)
+                except Exception as e:
+                    print(f'Warning: Failed to load cache ({e}), falling back to raw histograms', file=sys.stderr)
+                    cache_file = None
             
-            word_histogram_data = common.common.load_vocab_from_histogram(word_histogram_path, start_from=1,
-                                                                          max_size=int(args.word_vocab_size),
-                                                                          return_counts=True)
-            _, _, _, word_to_count = word_histogram_data
+            if not cache_file or not os.path.exists(cache_file):
+                # Slow path: Load from raw histogram files
+                print('Loading histograms from raw files (consider running preload_histograms.py)', file=sys.stderr)
+                
+                # Validate histogram files exist
+                for histo_file in [word_histogram_path, path_histogram_path, args.target_histogram]:
+                    if not os.path.exists(histo_file):
+                        print(f'[ERROR] Histogram file not found: {histo_file}', file=sys.stderr)
+                        sys.exit(1)
+                
+                word_histogram_data = common.common.load_vocab_from_histogram(word_histogram_path, start_from=1,
+                                                                              max_size=int(args.word_vocab_size),
+                                                                              return_counts=True)
+                _, _, _, word_to_count = word_histogram_data
             _, _, _, path_to_count = common.common.load_vocab_from_histogram(path_histogram_path, start_from=1,
                                                                              max_size=int(args.path_vocab_size),
                                                                              return_counts=True)
