@@ -17,6 +17,7 @@
 - **`preload_histograms.py`** - ヒストグラムの事前ロード・キャッシュ化
 - **`extract_code_snippets.py`** - JSONファイルからコードスニペットを抽出
 - **`build_trainHist.sh`** - 学習用ヒストグラムデータを構築
+- **`calculate_similarity.py`** - ベースベクトルとの類似度を計算してJSON出力
 
 ## Docker環境でのパス構造
 
@@ -44,6 +45,9 @@
 
 /data/                          # 外部データマウントポイント
 └── sampling/train/             # 学習データ（build_trainHist.sh用）
+
+/code2vec/similarity/           # 類似度計算結果
+└── {base_filename}_similarity.json
 ```
 
 ## 使用方法
@@ -66,6 +70,13 @@ python3 /code2vec/ql2vec/preload_histograms.py --dataset js_dataset_min5
 
 # 学習用ヒストグラム構築
 ./build_trainHist.sh
+
+# 類似度計算
+# 全プロジェクトを対象
+python3 /code2vec/ql2vec/calculate_similarity.py
+
+# 特定ディレクトリを対象
+python3 /code2vec/ql2vec/calculate_similarity.py /path/to/target_dir
 ```
 
 ### 入力・出力例
@@ -141,3 +152,81 @@ python3 /code2vec/ql2vec/preload_histograms.py --dataset js_dataset_min5
 # 並列ジョブ数を手動指定（CPUコア数に応じて調整）
 ./jscode2vec_parallel.sh /path/to/target 8  # 8並列で実行
 ```
+
+## 類似度計算
+
+### 基本的な使い方
+
+`ql2vec/origin_222/vectors`配下の全ベクトルファイルと、
+指定されたディレクトリ配下の全ベクトルファイルとのコサイン類似度を計算します。
+各比較対象ファイルについて、複数のベースベクトルとの類似度、平均値、分散を算出します。
+
+```bash
+# Docker環境で実行
+cd /code2vec/ql2vec
+
+# 全プロジェクトを対象に類似度計算（resultsフォルダ全体）
+python3 calculate_similarity.py
+
+# 特定のディレクトリ配下のみを対象
+python3 calculate_similarity.py /path/to/target_dir
+```
+
+### 前提条件
+
+類似度計算を実行する前に、`ql2vec/origin_222/vectors`ディレクトリにベースとなる
+ベクトルファイルを配置する必要があります。
+
+例: `jsperf_222.vector`, `jsperf_232.vector`, `jsperf_239.vector` など
+
+### 出力形式
+
+結果は`ql2vec/similarity/result_222_similarity.json`に保存されます。
+
+```json
+{
+  "total_count": 1523,
+  "results": [
+    {
+      "file": "project1_123",
+      "cos_similarity": [
+        {
+          "jsperf_222": 0.9876,
+          "jsperf_232": 0.9854,
+          "jsperf_239": 0.9901
+        }
+      ],
+      "mean": 0.9877,
+      "var": 0.0000456
+    },
+    {
+      "file": "project2_456",
+      "cos_similarity": [
+        {
+          "jsperf_222": 0.9543,
+          "jsperf_232": 0.9521,
+          "jsperf_239": 0.9567
+        }
+      ],
+      "mean": 0.9544,
+      "var": 0.0000432
+    }
+  ]
+}
+```
+
+- `file`: プロジェクト名_ID（例: `wuchangming-spy-debugger_0`）
+- `cos_similarity`: 各ベースベクトルとのコサイン類似度の辞書
+- `mean`: コサイン類似度の平均値
+- `var`: コサイン類似度の分散
+- 結果は`mean`の降順でソート済み
+
+### カスタマイズ
+
+ベースベクトルディレクトリを変更する場合は、`calculate_similarity.py`の以下の行を編集：
+
+```python
+# main()関数内
+base_vectors_dir = script_dir / 'origin_222' / 'vectors'
+```
+

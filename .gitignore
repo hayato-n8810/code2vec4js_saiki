@@ -22,3 +22,6 @@ tmp/
 
 # テスト用
 **/target/**
+
+# 類似度結果
+**/similarity/**
