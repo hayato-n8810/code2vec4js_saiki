@@ -39,7 +39,7 @@ import json
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(SCRIPT_DIR, '..'))
 
-import common
+from common import common
 
 class HistogramServer:
     def __init__(self, dataset_name, word_vocab_size, path_vocab_size, target_vocab_size):
