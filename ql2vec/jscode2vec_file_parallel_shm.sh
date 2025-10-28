@@ -21,18 +21,19 @@ fi
 
 TARGET_BASE_DIR="$1"
 
+# Detect available cores (always needed for thread calculation)
+if command -v nproc >/dev/null 2>&1; then
+  AVAILABLE_CORES=$(nproc)
+elif command -v sysctl >/dev/null 2>&1; then
+  AVAILABLE_CORES=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+else
+  AVAILABLE_CORES=4
+fi
+
 # Auto-detect parallel jobs
 if [ $# -ge 2 ]; then
   MAX_PARALLEL_JOBS="$2"
 else
-  if command -v nproc >/dev/null 2>&1; then
-    AVAILABLE_CORES=$(nproc)
-  elif command -v sysctl >/dev/null 2>&1; then
-    AVAILABLE_CORES=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
-  else
-    AVAILABLE_CORES=4
-  fi
-  
   MAX_PARALLEL_JOBS=$((AVAILABLE_CORES * 60 / 100))
   
   if [ "$MAX_PARALLEL_JOBS" -lt 2 ]; then

@@ -39,7 +39,7 @@ import json
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(SCRIPT_DIR, '..'))
 
-import common.common
+import common
 
 class HistogramServer:
     def __init__(self, dataset_name, word_vocab_size, path_vocab_size, target_vocab_size):
@@ -84,13 +84,13 @@ class HistogramServer:
             if not os.path.exists(f):
                 raise FileNotFoundError(f"Histogram file not found: {f}")
         
-        _, _, _, word_to_count = common.common.load_vocab_from_histogram(
+        _, _, _, word_to_count = common.load_vocab_from_histogram(
             word_histo, start_from=1, max_size=self.word_vocab_size, return_counts=True
         )
-        _, _, _, path_to_count = common.common.load_vocab_from_histogram(
+        _, _, _, path_to_count = common.load_vocab_from_histogram(
             path_histo, start_from=1, max_size=self.path_vocab_size, return_counts=True
         )
-        _, _, _, target_to_count = common.common.load_vocab_from_histogram(
+        _, _, _, target_to_count = common.load_vocab_from_histogram(
             target_histo, start_from=1, max_size=self.target_vocab_size, return_counts=True
         )
         
