@@ -24,6 +24,20 @@ log_file="${output_base}/process.log"
 
 mkdir -p "$c2v_dir" "$vector_dir" "$(dirname "$log_file")" 2>/dev/null || true
 
+# Cleanup function for temporary files
+cleanup_temp_files() {
+  # Clean up intermediate files on exit/interrupt
+  if [ -n "${raw_file:-}" ] && [ -f "$raw_file" ]; then
+    rm -f "$raw_file"
+  fi
+  if [ -n "${c2v_file:-}" ] && [ -f "$c2v_file" ]; then
+    rm -f "$c2v_file"
+  fi
+}
+
+# Register cleanup on exit/interrupt (catches TERM, INT, EXIT)
+trap cleanup_temp_files EXIT INT TERM
+
 # Logging function (both to file and stdout for parallel --line-buffer)
 log_both() {
   local msg="[$(date '+%H:%M:%S')] [$project_name/$file_name] $*"
@@ -54,14 +68,14 @@ if ! $PYTHON_BIN /code2vec/JSExtractor/extract.py \
     --max_path_width 2 \
     > "$raw_file" 2>/dev/null; then
   log_both "[ERROR] Extraction failed: $base_name"
-  rm -f "$raw_file"
+  # Cleanup handled by trap
   exit 0
 fi
 
 # Step 2: Validate (same as process_project_worker.sh)
 if ! grep -E "^[a-zA-Z|]+\s" "$raw_file" > "${raw_file}.tmp" 2>/dev/null; then
   log_both "[WARN] No valid lines after validation: $base_name"
-  rm -f "$raw_file" "${raw_file}.tmp"
+  # Cleanup handled by trap
   exit 0
 fi
 mv -f "${raw_file}.tmp" "$raw_file" 2>/dev/null
@@ -99,13 +113,13 @@ done
 
 if [ "$preprocess_success" = false ]; then
   log_both "[ERROR] Preprocess failed after $MAX_RETRIES attempts: $base_name"
-  rm -f "$raw_file"
+  # Cleanup handled by trap
   exit 0
 fi
 
 if [ ! -s "$c2v_file" ]; then
   log_both "[WARN] No contexts produced: $base_name"
-  rm -f "$raw_file" "$c2v_file"
+  # Cleanup handled by trap
   exit 0
 fi
 
@@ -114,11 +128,14 @@ fi
 # Timeout: 15 minutes (covers P99 of processing time)
 export TF_CPP_MIN_LOG_LEVEL=3  # Suppress TensorFlow C++ warnings
 
+# Use MODEL_PATH environment variable (defaults to js_dataset_min5 iter19)
+MODEL_PATH=${MODEL_PATH:-/code2vec/models/js_dataset_min5/saved_model_iter19.release}
+
 # Run with timeout using GNU timeout command
 # - 900s = 15 minutes (recommended for production)
 # - --kill-after=10s: Send SIGKILL if process doesn't terminate after SIGTERM
 if ! timeout --kill-after=10s 900s $PYTHON_BIN /code2vec/ql2vec/code2vec_only.py \
-    --load /code2vec/models/js_dataset_min5/saved_model_iter19.release \
+    --load "$MODEL_PATH" \
     --test "$c2v_file" \
     --export_code_vectors >/dev/null 2>&1; then
   exit_code=$?
@@ -129,8 +146,7 @@ if ! timeout --kill-after=10s 900s $PYTHON_BIN /code2vec/ql2vec/code2vec_only.py
   else
     log_both "[ERROR] Vectorization failed (exit code $exit_code): $base_name"
   fi
-  # Cleanup and continue
-  rm -f "$raw_file" "$c2v_file"
+  # Cleanup handled by trap
   exit 0
 fi
 unset TF_CPP_MIN_LOG_LEVEL
@@ -138,12 +154,13 @@ unset TF_CPP_MIN_LOG_LEVEL
 if [ -s "$vectors_file" ]; then
   mv -f "$vectors_file" "$out_vector"
   log_both "[DONE] ${base_name}.vector"
+  # Cleanup intermediates (trap will also clean up)
+  rm -f "$raw_file"
 else
   log_both "[WARN] Vector file not generated: $base_name"
   exit 0
 fi
 
-# Cleanup intermediates
-rm -f "$raw_file"
+# Successful completion (trap will clean up any remaining temp files)
 
 exit 0

@@ -74,6 +74,7 @@ HISTO_DIR="/code2vec/data/${DATASET_NAME}"
 WORD_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.ori.c2v"
 PATH_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.path.c2v"
 TARGET_HISTO="${HISTO_DIR}/${DATASET_NAME}.histo.tgt.c2v"
+MODEL_PATH="/code2vec/models/${DATASET_NAME}/saved_model_iter19.release"
 
 # Validate histograms
 for f in "$WORD_HISTO" "$PATH_HISTO" "$TARGET_HISTO"; do
@@ -83,9 +84,15 @@ for f in "$WORD_HISTO" "$PATH_HISTO" "$TARGET_HISTO"; do
   fi
 done
 
+# Validate model
+if [ ! -f "${MODEL_PATH}.meta" ]; then
+  echo "[ERROR] Model not found: ${MODEL_PATH}.meta" >&2
+  exit 1
+fi
+
 # Export variables for worker
 export PYTHON_BIN MAX_CONTEXTS WORD_VOCAB_SIZE PATH_VOCAB_SIZE TARGET_VOCAB_SIZE
-export WORD_HISTO PATH_HISTO TARGET_HISTO TARGET_BASE_DIR
+export WORD_HISTO PATH_HISTO TARGET_HISTO TARGET_BASE_DIR MODEL_PATH
 export OMP_NUM_THREADS MKL_NUM_THREADS OPENBLAS_NUM_THREADS
 
 # ---------- Shared Memory Histogram Server ----------
@@ -97,24 +104,35 @@ echo ""
 
 HISTOGRAM_SERVER_SCRIPT="/code2vec/ql2vec/histogram_server.py"
 HISTOGRAM_SERVER_PID=""
+SERVER_OWNER=false  # Track if we started the server
 
 # Cleanup function
 cleanup_histogram_server() {
-  if [ -n "$HISTOGRAM_SERVER_PID" ]; then
+  # Only stop server if we started it
+  if [ "$SERVER_OWNER" = true ]; then
     echo ""
-    echo "[INFO] Stopping histogram server..."
+    echo "[INFO] Stopping histogram server (we started it)..."
     $PYTHON_BIN "$HISTOGRAM_SERVER_SCRIPT" stop || true
-    wait $HISTOGRAM_SERVER_PID 2>/dev/null || true
+    if [ -n "$HISTOGRAM_SERVER_PID" ]; then
+      wait $HISTOGRAM_SERVER_PID 2>/dev/null || true
+    fi
     echo "[OK] Histogram server stopped"
+  else
+    # We're using an existing server, don't stop it
+    if [ -n "$HISTOGRAM_SERVER_PID" ]; then
+      echo ""
+      echo "[INFO] Leaving shared histogram server running (shared by multiple processes)"
+    fi
   fi
 }
 
-# Register cleanup on exit
+# Register cleanup on exit (catches EXIT, SIGINT, SIGTERM)
 trap cleanup_histogram_server EXIT INT TERM
 
 # Check if server is already running
 if $PYTHON_BIN "$HISTOGRAM_SERVER_SCRIPT" status 2>/dev/null | grep -q "RUNNING"; then
   echo "[INFO] Histogram server already running, using existing instance"
+  SERVER_OWNER=false
   
   # Get shared memory name from metadata
   METADATA_FILE="/tmp/code2vec_histograms_${DATASET_NAME}_metadata.json"
@@ -127,6 +145,8 @@ else
   echo "[INFO] Starting histogram shared memory server..."
   echo "[INFO] This loads histograms ONCE into RAM for all workers"
   echo ""
+  
+  SERVER_OWNER=true  # We're starting the server
   
   # Start server in background
   $PYTHON_BIN "$HISTOGRAM_SERVER_SCRIPT" \
@@ -193,7 +213,7 @@ if [ -n "${HISTOGRAM_SHM_NAME:-}" ]; then
 fi
 
 # Process files in parallel (similar to jscode2vec_parallel.sh)
-# CRITICAL: Use --env to pass shared memory variables to workers
+# CRITICAL: Use --env to pass ALL required variables to workers
 find "$TARGET_BASE_DIR" -type f -name "*.js" -print0 | \
   parallel -0 \
     -j "$MAX_PARALLEL_JOBS" \
@@ -201,6 +221,16 @@ find "$TARGET_BASE_DIR" -type f -name "*.js" -print0 | \
     --joblog "$JOBLOG_FILE" \
     --env HISTOGRAM_SHM_NAME \
     --env HISTOGRAM_SHM_SIZE \
+    --env PYTHON_BIN \
+    --env MAX_CONTEXTS \
+    --env WORD_VOCAB_SIZE \
+    --env PATH_VOCAB_SIZE \
+    --env TARGET_VOCAB_SIZE \
+    --env WORD_HISTO \
+    --env PATH_HISTO \
+    --env TARGET_HISTO \
+    --env TARGET_BASE_DIR \
+    --env MODEL_PATH \
     /code2vec/ql2vec/process_single_file_worker.sh {}
 
 echo ""
