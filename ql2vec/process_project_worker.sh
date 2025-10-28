@@ -14,7 +14,21 @@ c2v_dir="${output_base}/c2v"
 vector_dir="${output_base}/vectors"
 log_file="${output_base}/process.log"
 
-mkdir -p "$c2v_dir" "$vector_dir" "$(dirname "$log_file")"
+mkdir -p "$c2v_dir" "$vector_dir" "$(dirname "$log_file")" 2>/dev/null || true
+
+# Cleanup function for temporary files
+cleanup_temp_files() {
+  # Clean up intermediate files on exit/interrupt
+  if [ -n "${raw_file:-}" ] && [ -f "$raw_file" ]; then
+    rm -f "$raw_file"
+  fi
+  if [ -n "${c2v_file:-}" ] && [ -f "$c2v_file" ]; then
+    rm -f "$c2v_file"
+  fi
+}
+
+# Register cleanup on exit/interrupt (catches TERM, INT, EXIT)
+trap cleanup_temp_files EXIT INT TERM
 
 # Save original stdout for progress reporting
 exec 3>&1
@@ -129,18 +143,21 @@ for jsf in "${js_files[@]}"; do
   # Timeout: 15 minutes (covers P99 of processing time)
   export TF_CPP_MIN_LOG_LEVEL=3  # Suppress TensorFlow C++ warnings
   
+  # Use MODEL_PATH environment variable (defaults to js_dataset_min5 iter19)
+  MODEL_PATH=${MODEL_PATH:-/code2vec/models/js_dataset_min5/saved_model_iter19.release}
+  
   # Run with timeout using GNU timeout command
   # - 900s = 15 minutes (recommended for production)
   # - --kill-after=10s: Send SIGKILL if process doesn't terminate after SIGTERM
   if ! timeout --kill-after=10s 900s $PYTHON_BIN /code2vec/ql2vec/code2vec_only.py \
-      --load /code2vec/models/js_dataset_min5/saved_model_iter19.release \
+      --load "$MODEL_PATH" \
       --test "$c2v_file" \
       --export_code_vectors >/dev/null 2>&1; then
     exit_code=$?
     if [ $exit_code -eq 124 ]; then
       echo "[ERROR] Vectorization timeout (>15m): $base_name"
-    elif [ $exit_code -eq 137 ]; then
-      echo "[ERROR] Vectorization killed (OOM or forced): $base_name"
+    elif [ $exit_code -eq 137 ] || [ $exit_code -eq 143 ]; then
+      echo "[ERROR] Vectorization killed (OOM or forced kill): $base_name"
     else
       echo "[ERROR] Vectorization failed (exit code $exit_code): $base_name"
     fi
@@ -153,13 +170,12 @@ for jsf in "${js_files[@]}"; do
     mv -f "$vectors_file" "$out_vector"
     echo "[DONE] ${base_name}.vector"
     ((success_count++))
+    # Cleanup intermediates
+    rm -f "$raw_file"
   else
     echo "[WARN] Vector file not generated: $base_name"
     ((error_count++))
   fi
-  
-  # Cleanup intermediates
-  rm -f "$raw_file"
 done
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] [SUMMARY] $project_name"
@@ -171,3 +187,6 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] [END] $project_name"
 
 # Output completion marker to original stdout (fd 3) for progress tracking
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] [END] $project_name" >&3
+
+# Cleanup handled by trap
+
