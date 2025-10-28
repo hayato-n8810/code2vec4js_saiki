@@ -184,12 +184,23 @@ echo "  - Job log: ${JOBLOG_FILE}"
 echo "  - Histogram I/O: ZERO (shared memory)"
 echo ""
 
+# Debug: Show environment variables
+if [ -n "${HISTOGRAM_SHM_NAME:-}" ]; then
+  echo "[DEBUG] Shared memory env vars:"
+  echo "  HISTOGRAM_SHM_NAME=$HISTOGRAM_SHM_NAME"
+  echo "  HISTOGRAM_SHM_SIZE=$HISTOGRAM_SHM_SIZE"
+  echo ""
+fi
+
 # Process files in parallel (similar to jscode2vec_parallel.sh)
+# CRITICAL: Use --env to pass shared memory variables to workers
 find "$TARGET_BASE_DIR" -type f -name "*.js" -print0 | \
   parallel -0 \
     -j "$MAX_PARALLEL_JOBS" \
     --line-buffer \
     --joblog "$JOBLOG_FILE" \
+    --env HISTOGRAM_SHM_NAME \
+    --env HISTOGRAM_SHM_SIZE \
     /code2vec/ql2vec/process_single_file_worker.sh {}
 
 echo ""
