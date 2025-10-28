@@ -174,31 +174,22 @@ echo "[INFO] Scanning for JS files..."
 total_files=$(find "$TARGET_BASE_DIR" -type f -name "*.js" | wc -l)
 echo "[INFO] Found ${total_files} JS file(s) across all projects"
 
-# Resource protection settings
-MEMFREE_THRESHOLD="2G"
-LOAD_THRESHOLD=$((AVAILABLE_CORES * 2))
-
+# Job logging
 JOBLOG_FILE="/code2vec/results/parallel_jobs_shm.log"
 mkdir -p "$(dirname "$JOBLOG_FILE")"
 
-echo "[INFO] Resource protection enabled:"
-echo "  - Memfree threshold: ${MEMFREE_THRESHOLD}"
-echo "  - Load average threshold: ${LOAD_THRESHOLD}"
+echo "[INFO] Parallel execution settings:"
+echo "  - Parallel jobs: ${MAX_PARALLEL_JOBS}"
 echo "  - Job log: ${JOBLOG_FILE}"
 echo "  - Histogram I/O: ZERO (shared memory)"
 echo ""
 
-# Process files in parallel
+# Process files in parallel (similar to jscode2vec_parallel.sh)
 find "$TARGET_BASE_DIR" -type f -name "*.js" -print0 | \
   parallel -0 \
     -j "$MAX_PARALLEL_JOBS" \
     --line-buffer \
-    --progress \
     --joblog "$JOBLOG_FILE" \
-    --memfree "$MEMFREE_THRESHOLD" \
-    --load "$LOAD_THRESHOLD" \
-    --delay 0.1 \
-    --retries 2 \
     /code2vec/ql2vec/process_single_file_worker.sh {}
 
 echo ""
