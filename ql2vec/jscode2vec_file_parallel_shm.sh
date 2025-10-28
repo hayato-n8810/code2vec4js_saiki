@@ -130,17 +130,16 @@ cleanup_histogram_server() {
 trap cleanup_histogram_server EXIT INT TERM
 
 # Check if server is already running
-if $PYTHON_BIN "$HISTOGRAM_SERVER_SCRIPT" status 2>/dev/null | grep -q "RUNNING"; then
+# Note: Suppress stderr (TensorFlow warnings) and check for metadata file
+METADATA_FILE="/tmp/code2vec_histograms_${DATASET_NAME}_metadata.json"
+if [ -f "$METADATA_FILE" ] && $PYTHON_BIN "$HISTOGRAM_SERVER_SCRIPT" status 2>/dev/null | grep -q "Server Status: RUNNING"; then
   echo "[INFO] Histogram server already running, using existing instance"
   SERVER_OWNER=false
   
-  # Get shared memory name from metadata
-  METADATA_FILE="/tmp/code2vec_histograms_${DATASET_NAME}_metadata.json"
-  if [ -f "$METADATA_FILE" ]; then
-    export HISTOGRAM_SHM_NAME=$(grep -o '"shm_name": "[^"]*"' "$METADATA_FILE" | cut -d'"' -f4)
-    export HISTOGRAM_SHM_SIZE=$(grep -o '"size": [0-9]*' "$METADATA_FILE" | awk '{print $2}')
-    echo "[INFO] Using shared memory: $HISTOGRAM_SHM_NAME ($HISTOGRAM_SHM_SIZE bytes)"
-  fi
+  # Get shared memory name from metadata (file already exists, checked above)
+  export HISTOGRAM_SHM_NAME=$(grep -o '"shm_name": "[^"]*"' "$METADATA_FILE" | cut -d'"' -f4)
+  export HISTOGRAM_SHM_SIZE=$(grep -o '"size": [0-9]*' "$METADATA_FILE" | awk '{print $2}')
+  echo "[INFO] Using shared memory: $HISTOGRAM_SHM_NAME ($HISTOGRAM_SHM_SIZE bytes)"
 else
   echo "[INFO] Starting histogram shared memory server..."
   echo "[INFO] This loads histograms ONCE into RAM for all workers"
@@ -160,7 +159,7 @@ else
   
   # Wait for server to be ready
   echo "[INFO] Waiting for server to initialize..."
-  METADATA_FILE="/tmp/code2vec_histograms_${DATASET_NAME}_metadata.json"
+  # METADATA_FILE already defined at the top of this if-else block
   
   for i in {1..30}; do
     if [ -f "$METADATA_FILE" ]; then
