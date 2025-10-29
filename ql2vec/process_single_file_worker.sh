@@ -61,7 +61,7 @@ if [ -f "$out_vector" ]; then
 fi
 
 # Step 1: Extract (same as process_project_worker.sh)
-if ! $PYTHON_BIN /code2vec/JSExtractor/extract.py \
+if ! timeout --kill-after=10s 480s $PYTHON_BIN /code2vec/JSExtractor/extract.py \
     --file "$js_file" \
     --whole_file \
     --max_path_length 8 \

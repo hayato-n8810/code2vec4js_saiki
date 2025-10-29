@@ -71,7 +71,7 @@ for jsf in "${js_files[@]}"; do
   fi
   
   # Step 1: Extract
-  if ! $PYTHON_BIN /code2vec/JSExtractor/extract.py \
+  if ! timeout --kill-after=10s 480s $PYTHON_BIN /code2vec/JSExtractor/extract.py \
       --file "$jsf" \
       --whole_file \
       --max_path_length 8 \
