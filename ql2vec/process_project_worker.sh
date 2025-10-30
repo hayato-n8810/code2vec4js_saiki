@@ -13,17 +13,25 @@ output_base="/code2vec/results/${project_name}"
 c2v_dir="${output_base}/c2v"
 vector_dir="${output_base}/vectors"
 log_file="${output_base}/process.log"
+context_count_file="${c2v_dir}/context_count.json"
 
 mkdir -p "$c2v_dir" "$vector_dir" "$(dirname "$log_file")" 2>/dev/null || true
 
+# Initialize context count JSON file
+echo "{" > "$context_count_file"
+
 # Cleanup function for temporary files
 cleanup_temp_files() {
-  # Clean up intermediate files on exit/interrupt
-  if [ -n "${raw_file:-}" ] && [ -f "$raw_file" ]; then
-    rm -f "$raw_file"
-  fi
+  # Clean up intermediate files on exit/interrupt (but keep raw_file)
   if [ -n "${c2v_file:-}" ] && [ -f "$c2v_file" ]; then
     rm -f "$c2v_file"
+  fi
+  
+  # Finalize context_count.json on exit
+  if [ -f "$context_count_file" ]; then
+    # Remove trailing comma if exists and close JSON
+    sed -i '$ s/,$//' "$context_count_file" 2>/dev/null || sed -i '' '$ s/,$//' "$context_count_file" 2>/dev/null
+    echo "}" >> "$context_count_file"
   fi
 }
 
@@ -55,6 +63,33 @@ echo "[INFO] Found ${#js_files[@]} JS file(s) in $project_name"
 success_count=0
 skip_count=0
 error_count=0
+first_entry=true
+
+# Helper function to count contexts in raw file
+count_contexts() {
+  local file="$1"
+  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    echo 0
+    return
+  fi
+  
+  # Count total contexts (space-separated fields minus target name)
+  awk '{print NF-1}' "$file" | awk '{sum+=$1} END {print sum+0}'
+}
+
+# Helper function to add JSON entry
+add_context_count() {
+  local filename="$1"
+  local count="$2"
+  
+  if [ "$first_entry" = true ]; then
+    echo "  \"$filename\": $count" >> "$context_count_file"
+    first_entry=false
+  else
+    echo "," >> "$context_count_file"
+    echo "  \"$filename\": $count" >> "$context_count_file"
+  fi
+}
 
 for jsf in "${js_files[@]}"; do
   base_name=$(basename "$jsf" .js)
@@ -67,6 +102,14 @@ for jsf in "${js_files[@]}"; do
   if [ -f "$out_vector" ]; then
     echo "[SKIP] ${base_name}.vector already exists"
     ((skip_count++))
+    
+    # Count contexts from existing raw file
+    if [ -f "$raw_file" ]; then
+      context_count=$(count_contexts "$raw_file")
+      add_context_count "$base_name" "$context_count"
+    else
+      add_context_count "$base_name" "\"error\""
+    fi
     continue
   fi
   
@@ -79,6 +122,7 @@ for jsf in "${js_files[@]}"; do
       > "$raw_file" 2>/dev/null; then
     echo "[ERROR] Extraction failed: $base_name"
     ((error_count++))
+    add_context_count "$base_name" "\"error\""
     rm -f "$raw_file"
     continue
   fi
@@ -87,7 +131,9 @@ for jsf in "${js_files[@]}"; do
   if ! grep -E "^[a-zA-Z|]+\s" "$raw_file" > "${raw_file}.tmp" 2>/dev/null; then
     echo "[WARN] No valid lines after validation: $base_name"
     ((error_count++))
-    rm -f "$raw_file" "${raw_file}.tmp"
+    add_context_count "$base_name" 0
+    rm -f "${raw_file}.tmp"
+    # Keep raw_file for debugging
     continue
   fi
   mv -f "${raw_file}.tmp" "$raw_file" 2>/dev/null
@@ -95,9 +141,14 @@ for jsf in "${js_files[@]}"; do
   if [ ! -s "$raw_file" ]; then
     echo "[WARN] Empty after validation: $base_name"
     ((error_count++))
-    rm -f "$raw_file"
+    add_context_count "$base_name" 0
+    # Keep raw_file for debugging
     continue
   fi
+  
+  # Count contexts after validation
+  context_count=$(count_contexts "$raw_file")
+  add_context_count "$base_name" "$context_count"
   
   # Step 3: Preprocess (with retry mechanism)
   MAX_RETRIES=2
@@ -134,7 +185,7 @@ for jsf in "${js_files[@]}"; do
   if [ ! -s "$c2v_file" ]; then
     echo "[WARN] No contexts produced: $base_name"
     ((error_count++))
-    rm -f "$raw_file" "$c2v_file"
+    # Keep raw_file for debugging
     continue
   fi
   
@@ -170,8 +221,7 @@ for jsf in "${js_files[@]}"; do
     mv -f "$vectors_file" "$out_vector"
     echo "[DONE] ${base_name}.vector"
     ((success_count++))
-    # Cleanup intermediates
-    rm -f "$raw_file"
+    # Keep raw_file for reference, only cleanup c2v intermediate file
   else
     echo "[WARN] Vector file not generated: $base_name"
     ((error_count++))
