@@ -286,7 +286,7 @@ def main():
     script_dir = Path("/code2vec/ql2vec")
     
     # ベースベクトルディレクトリ（固定）
-    base_vectors_dir = script_dir / 'origin_222' / 'vectors'
+    base_vectors_dir = script_dir / 'origin_pattern' / 'origin_222' / 'vectors'
     
     # ターゲットディレクトリの決定
     if len(sys.argv) >= 2:

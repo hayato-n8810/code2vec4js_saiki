@@ -1,0 +1,8 @@
+Total projects: 1
+Total files: 78
+Success: 78
+Empty: 0
+Errors: 0
+Total contexts: 12616
+Avg contexts/file: 161.7
+Processing time: 55.1s
