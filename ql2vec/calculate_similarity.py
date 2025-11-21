@@ -205,11 +205,18 @@ def calculate_similarities(
             skipped += 1
             continue
         
+        # ターゲットベクトルのファイル名（拡張子なし）を取得
+        target_file_stem = Path(vector_file).stem
+        
         # 各ベースベクトルとのコサイン類似度を計算
         similarities = {}
         similarity_values = []
         
         for base_name, base_vector in base_vectors.items():
+            # ファイル名が一致する場合はスキップ
+            if base_name == target_file_stem:
+                continue
+            
             similarity = cos_sim(base_vector, target_vector)
             similarities[base_name] = float(similarity)
             similarity_values.append(similarity)
