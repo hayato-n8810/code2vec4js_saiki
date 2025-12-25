@@ -176,7 +176,7 @@ else
       echo ""
       echo "[OK] Histogram server ready!"
       echo "[INFO] Shared Memory: $HISTOGRAM_SHM_NAME"
-      echo "[INFO] Size: $(awk "BEGIN {printf \"%.2f\", $HISTOGRAM_SHM_SIZE / 1024 / 1024}") MB"
+      echo "[INFO] Size: $(echo "scale=2; $HISTOGRAM_SHM_SIZE / 1024 / 1024" | bc) MB"
       echo ""
       break
     fi

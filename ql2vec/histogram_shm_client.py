@@ -3,11 +3,10 @@
 Preprocess client that uses shared memory histograms
 """
 
+import sys
 import os
 import pickle
-import sys
 from multiprocessing import shared_memory
-
 
 def load_histograms_from_shared_memory():
     """
@@ -38,14 +37,9 @@ def load_histograms_from_shared_memory():
         path_to_count = histogram_data.get('path_to_count', {})
         target_to_count = histogram_data.get('target_to_count', {})
         
-        # CRITICAL: Only close the handle, NEVER unlink
-        # The shared memory must persist across all worker processes
-        # Only the server (histogram_server.py) should unlink on shutdown
+        # Don't close/unlink - shared memory should persist
+        # shm.close() is called but NOT shm.unlink()
         shm.close()
-        
-        # Manually detach to prevent resource_tracker cleanup
-        # This prevents Python's multiprocessing cleanup from unlinking the shared memory
-        shm._name = None
         
         print(f'[OK] Loaded from shared memory: {len(word_to_count)} words, '
               f'{len(path_to_count)} paths, {len(target_to_count)} targets', 
@@ -55,7 +49,7 @@ def load_histograms_from_shared_memory():
         
     except Exception as e:
         print(f'[WARN] Failed to load from shared memory: {e}', file=sys.stderr)
-        print('[WARN] Falling back to disk-based loading', file=sys.stderr)
+        print(f'[WARN] Falling back to disk-based loading', file=sys.stderr)
         return None, None, None
 
 
