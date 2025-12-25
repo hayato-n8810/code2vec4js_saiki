@@ -6,19 +6,20 @@ services:
     container_name: code2vec4js
     volumes:
       - ./:/code2vec/
-      - /mnt/data1/hayato-n/dataset/data/jsPerf:/data
+      - /mnt/data1/hayato-n/dataset/data/bachelorQL:/data
+      # - /Users/hayato-n/projects/hayaLab/codeql/output/bachelorQL/id_3:/data/id_3_mb
     shm_size: '64gb'        # Shared memory for histogram server (1.1GB needed)
     deploy:
       resources:
         limits:
           cpus: '45.0'     # Full server capacity (48 logical cores)
-    #       memory: 64G      # Increased for parallel processing
-    #     reservations:
-    #       cpus: '36.0'     # Reserve at least 36 cores for parallel workload
-    #       memory: 32G
-    # runtime: nvidia
-    # environment:
-    #   - NVIDIA_VISIBLE_DEVICES=all
+          memory: 64G      # Increased for parallel processing
+        reservations:
+          cpus: '36.0'     # Reserve at least 36 cores for parallel workload
+          memory: 32G
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
     stdin_open: true
     tty: true
     working_dir: /code2vec
