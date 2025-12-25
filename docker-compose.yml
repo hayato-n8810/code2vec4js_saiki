@@ -17,9 +17,9 @@ services:
         reservations:
           cpus: '36.0'     # Reserve at least 36 cores for parallel workload
           memory: 32G
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
     stdin_open: true
     tty: true
     working_dir: /code2vec
