@@ -2,7 +2,7 @@
 """
 コサイン類似度計算プログラム
 
-ql2vec/origin_222/vectors配下の全ベクトルファイルと、
+ql2vec/origin_3/vectors配下の全ベクトルファイルと、
 指定されたディレクトリ配下の全ベクトルファイルとのコサイン類似度を計算し、
 統計情報を含むJSON形式で出力します。
 
@@ -14,15 +14,16 @@ Usage:
     python3 calculate_similarity.py /path/to/target_dir
     
 Output:
-    similarity/origin_222_similarity.json
+    similarity/id_3_similarity.json
 """
 
-import sys
-import os
 import json
-import numpy as np
+import re
+import sys
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import Dict, List
+
+import numpy as np
 
 
 def cos_sim(v1: np.ndarray, v2: np.ndarray) -> float:
@@ -103,6 +104,11 @@ def find_vector_files(base_dir: str) -> List[str]:
             if not project_dir.is_dir():
                 continue
             
+            # id_{数字} 形式のディレクトリをスキップ
+            if re.match(r'^id_\d+$', project_dir.name):
+                print(f"[SKIP] Skipping directory: {project_dir.name}", file=sys.stderr)
+                continue
+            
             vectors_dir = project_dir / "vectors"
             if not vectors_dir.exists():
                 continue
@@ -166,7 +172,7 @@ def calculate_similarities(
             base_vectors[base_file.stem] = vector
     
     if not base_vectors:
-        print(f"[ERROR] Failed to load any base vectors", file=sys.stderr)
+        print("[ERROR] Failed to load any base vectors", file=sys.stderr)
         return []
     
     print(f"[INFO] Loaded {len(base_vectors)} base vector(s)")
@@ -293,7 +299,7 @@ def main():
     script_dir = Path("/code2vec/ql2vec")
     
     # ベースベクトルディレクトリ（固定）
-    base_vectors_dir = script_dir / 'origin_pattern' / 'origin_222' / 'vectors'
+    base_vectors_dir = script_dir / 'origin_pattern' / 'id_3' / 'vectors'
     
     # ターゲットディレクトリの決定
     if len(sys.argv) >= 2:
@@ -316,18 +322,18 @@ def main():
     results = calculate_similarities(str(base_vectors_dir), target_dir)
     
     if not results:
-        print(f"[ERROR] No valid results generated", file=sys.stderr)
+        print("[ERROR] No valid results generated", file=sys.stderr)
         sys.exit(1)
     
     # 出力ファイル名を生成（origin_222ベース固定）
     output_dir = script_dir / 'similarity'
-    output_path = output_dir / 'result_222_similarity.json'
+    output_path = output_dir / 'id_3_similarity.json'
     
     # 結果を保存
     save_results(results, str(output_path))
     
     # 上位10件を表示
-    print(f"\n[TOP 10 SIMILAR FILES (by mean similarity)]")
+    print("\n[TOP 10 SIMILAR FILES (by mean similarity)]")
     for i, result in enumerate(results[:10], 1):
         print(f"  {i:2d}. {result['file']:50s} mean={result['mean']:.6f} var={result['var']:.6f}")
 
