@@ -325,7 +325,7 @@ def main():
         print("[ERROR] No valid results generated", file=sys.stderr)
         sys.exit(1)
     
-    # 出力ファイル名を生成（origin_222ベース固定）
+    # 出力ファイル名を生成（id_3ベース固定）
     output_dir = script_dir / 'similarity'
     output_path = output_dir / 'id_3_similarity.json'
     
