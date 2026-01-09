@@ -234,10 +234,18 @@ find "$TARGET_BASE_DIR" -type f -name "*.js" -print0 | \
 
 echo ""
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All files processed"
+
+# Count generated vector files
+base_dir_name=$(basename "$TARGET_BASE_DIR")
+vector_count=$(find "/code2vec/results/${base_dir_name}" -type f -name "*.vector" 2>/dev/null | wc -l | tr -d ' ')
+
 echo "[INFO] Check project logs at: results/{project_name}/process.log"
 echo ""
 echo "============================================================"
 echo "  Processing Complete!"
 echo "============================================================"
+echo ""
+echo "[RESULT] Total .vector files generated: ${vector_count}"
+echo "[RESULT] Output directory: /code2vec/results/${base_dir_name}"
 
 # Server cleanup handled by trap
