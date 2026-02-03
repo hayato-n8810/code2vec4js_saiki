@@ -298,44 +298,40 @@ def main():
     # スクリプトの実行ディレクトリを取得
     script_dir = Path("/code2vec/ql2vec")
     
-    # ベースベクトルディレクトリ（固定）
-    base_vectors_dir = script_dir / 'origin_pattern' / 'id_3' / 'vectors'
-    
-    # ターゲットディレクトリの決定
-    if len(sys.argv) >= 2:
-        # 引数がある場合: 指定されたディレクトリ
-        target_dir = sys.argv[1]
-        print(f"[INFO] Target directory (from argument): {target_dir}")
-    else:
-        # 引数がない場合: resultsフォルダ配下の全プロジェクト
+    for id_num in range(1, 7):
+        # ベースベクトルディレクトリ（固定）
+        base_vectors_dir = script_dir / 'origin_pattern' / f'id_{id_num}' / 'vectors'
+        
+        # ターゲットディレクトリの決定
+        # フォルダ配下の全プロジェクト
         # スクリプトの親ディレクトリ（プロジェクトルート）から相対パス
-        target_dir = str(script_dir.parent / 'results')
+        target_dir = str(script_dir.parent / 'results' / f'id_{id_num}_toRepo')
         print(f"[INFO] Target directory (default): {target_dir}")
-    
-    # ベースベクトルディレクトリの存在確認
-    if not base_vectors_dir.exists():
-        print(f"[ERROR] Base vectors directory not found: {base_vectors_dir}", file=sys.stderr)
-        print(f"[INFO] Please ensure the directory exists: {base_vectors_dir}")
-        sys.exit(1)
-    
-    # 類似度を計算
-    results = calculate_similarities(str(base_vectors_dir), target_dir)
-    
-    if not results:
-        print("[ERROR] No valid results generated", file=sys.stderr)
-        sys.exit(1)
-    
-    # 出力ファイル名を生成（id_3ベース固定）
-    output_dir = script_dir / 'similarity'
-    output_path = output_dir / 'id_3_similarity.json'
-    
-    # 結果を保存
-    save_results(results, str(output_path))
-    
-    # 上位10件を表示
-    print("\n[TOP 10 SIMILAR FILES (by mean similarity)]")
-    for i, result in enumerate(results[:10], 1):
-        print(f"  {i:2d}. {result['file']:50s} mean={result['mean']:.6f} var={result['var']:.6f}")
+        
+        # ベースベクトルディレクトリの存在確認
+        if not base_vectors_dir.exists():
+            print(f"[ERROR] Base vectors directory not found: {base_vectors_dir}", file=sys.stderr)
+            print(f"[INFO] Please ensure the directory exists: {base_vectors_dir}")
+            sys.exit(1)
+        
+        # 類似度を計算
+        results = calculate_similarities(str(base_vectors_dir), target_dir)
+        
+        if not results:
+            print("[ERROR] No valid results generated", file=sys.stderr)
+            sys.exit(1)
+        
+        # 出力ファイル名を生成（id_numベース固定）
+        output_dir = script_dir / 'similarity'
+        output_path = output_dir / f'id_{id_num}_similarity.json'
+        
+        # 結果を保存
+        save_results(results, str(output_path))
+        
+        # 上位10件を表示
+        print("\n[TOP 10 SIMILAR FILES (by mean similarity)]")
+        for i, result in enumerate(results[:10], 1):
+            print(f"  {i:2d}. {result['file']:50s} mean={result['mean']:.6f} var={result['var']:.6f}")
 
 
 if __name__ == "__main__":
