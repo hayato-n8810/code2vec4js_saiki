@@ -322,7 +322,7 @@ def main():
             sys.exit(1)
         
         # 出力ファイル名を生成（id_numベース固定）
-        output_dir = script_dir / 'similarity'
+        output_dir = script_dir / 'similarity' / 'bachelor' / f'id_{id_num}'
         output_path = output_dir / f'id_{id_num}_similarity.json'
         
         # 結果を保存
