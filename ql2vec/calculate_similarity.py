@@ -244,9 +244,9 @@ def calculate_similarities(
         
         processed += 1
         
-        # 進捗表示（100件ごと）
-        if processed % 100 == 0:
-            print(f"[PROGRESS] Processed {processed}/{len(vector_files)} files...")
+        # 進捗表示（1000件ごと）
+        # if processed % 100 == 0:
+        #     print(f"[PROGRESS] Processed {processed}/{len(vector_files)} files...")
     
     print(f"[INFO] Processed: {processed}, Skipped: {skipped}")
     
