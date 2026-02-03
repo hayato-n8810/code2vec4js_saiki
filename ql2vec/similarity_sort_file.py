@@ -18,7 +18,8 @@ import json
 import shutil
 import sys
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
+
 
 def copy_js_files(entries: List[Dict], src_root: Path, dest_dir: Path, label: str):
     """
@@ -47,15 +48,11 @@ def copy_js_files(entries: List[Dict], src_root: Path, dest_dir: Path, label: st
     print(f"[{label}] Copying {len(entries)} files to {dest_dir} ...")
 
     for entry in entries:
-        # JSON内の "path" は vectorsファイルのフルパス
-        # 例: .../results/id_1_toRepo/ProjectA/vectors/ProjectA_123.vector
-        vector_path = Path(entry['path'])
-        
-        # ディレクトリ構造からプロジェクト名を取得 (vectorsの親ディレクトリ名)
-        project_name = vector_path.parent.parent.name
-        
         # JSファイル名を構築
         file_stem = entry['file'] # 例: ProjectA_123
+        # ディレクトリ構造からプロジェクト名を取得 (vectorsの親ディレクトリ名)
+        project_name = file_stem.rsplit('_', 1)[0]
+        
         js_filename = f"{file_stem}.js"
         
         # JSファイルのソースパスを構築
