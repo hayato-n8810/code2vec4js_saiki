@@ -5,7 +5,7 @@
 similarity/bachelor/id_X/id_X_similarity.jsonを読み込み、
 outputs/extracted_code/id_X/{プロジェクト名}_code.jsonからfile_pathを取得し、
 file_pathに"test"や"spec"が含まれていないファイルについて、
-類似度上位30件をsimilarity/bachelor/id_X/notTest/にコピーします。
+類似度上位100件をsimilarity/bachelor/id_X/notTest/にコピーします。
 
 出力ファイル名形式:
   {順位}_{対応するjsファイル名}.js
@@ -69,7 +69,7 @@ def copy_js_files_not_test(
     dest_dir: Path,
     code_json_dir: Path,
     log_file,
-    limit: int = 30
+    limit: int = 100
 ):
     """
     テストファイル以外のJSファイルを順位付きでコピーする
@@ -248,7 +248,7 @@ def process_id(id_num: int, script_dir: Path):
         log_file.write(f"Code JSONs : {code_json_dir}\n")
         log_file.write(f"Total files in JSON: {total_files}\n\n")
         
-        copy_js_files_not_test(results, js_source_root, not_test_dir, code_json_dir, log_file, limit=30)
+        copy_js_files_not_test(results, js_source_root, not_test_dir, code_json_dir, log_file, limit=100)
 
 
 def main():
