@@ -68,6 +68,7 @@ def copy_js_files_not_test(
     src_root: Path,
     dest_dir: Path,
     code_json_dir: Path,
+    log_file,
     limit: int = 30
 ):
     """
@@ -78,8 +79,14 @@ def copy_js_files_not_test(
         src_root: JSファイルが格納されているルートディレクトリ
         dest_dir: コピー先ディレクトリ
         code_json_dir: outputs/extracted_code/id_X ディレクトリ
+        log_file: ログファイルハンドル
         limit: コピーする最大件数
     """
+    def log_print(msg: str):
+        """コンソールとログファイル両方に出力"""
+        print(msg)
+        log_file.write(msg + '\n')
+    
     # ディレクトリ作成
     dest_dir.mkdir(parents=True, exist_ok=True)
     
@@ -95,7 +102,7 @@ def copy_js_files_not_test(
     missing_count = 0
     rank = 0  # 元のリスト内での順位（1始まり）
 
-    print(f"[notTest] Finding non-test files (limit: {limit}) ...")
+    log_print(f"[notTest] Finding non-test files (limit: {limit}) ...")
 
     for entry in entries:
         rank += 1
@@ -152,18 +159,21 @@ def copy_js_files_not_test(
             if src_js_path.exists():
                 shutil.copy2(src_js_path, dest_js_path)
                 success_count += 1
-                print(f"  [{success_count}/{limit}] Rank {rank}: {dest_filename}")
+                log_print(f"  [{success_count}/{limit}] Rank {rank}: {dest_filename}")
+                log_print(f"      file_path: {file_path}")
                 
                 if success_count >= limit:
                     break
             else:
                 print(f"[WARN] JS file not found: {src_js_path}", file=sys.stderr)
+                log_file.write(f"[WARN] JS file not found: {src_js_path}\n")
                 missing_count += 1
         except Exception as e:
             print(f"[ERROR] Failed to copy {src_js_path}: {e}", file=sys.stderr)
+            log_file.write(f"[ERROR] Failed to copy {src_js_path}: {e}\n")
             missing_count += 1
 
-    print(f"[notTest] Completed. Copied: {success_count}, Skipped(test): {skip_test_count}, Missing: {missing_count}")
+    log_print(f"[notTest] Completed. Copied: {success_count}, Skipped(test): {skip_test_count}, Missing: {missing_count}")
 
 
 def process_id(id_num: int, script_dir: Path):
@@ -200,10 +210,14 @@ def process_id(id_num: int, script_dir: Path):
         print(f"[SKIP] Code JSON directory not found for ID {id_num}: {code_json_dir}", file=sys.stderr)
         return
 
+    # ログファイルパス
+    log_path = json_dir / f'id_{id_num}_notTest.log'
+
     print(f"\n=== Processing ID {id_num} ===")
     print(f"JSON Input : {json_path}")
     print(f"JS Source  : {js_source_root}")
     print(f"Code JSONs : {code_json_dir}")
+    print(f"Log File   : {log_path}")
 
     # JSON読み込み
     try:
@@ -224,9 +238,17 @@ def process_id(id_num: int, script_dir: Path):
     total_files = len(results)
     print(f"Total files in JSON: {total_files}")
     
-    # notTestディレクトリにコピー
+    # notTestディレクトリにコピー（ログファイル付き）
     not_test_dir = json_dir / 'notTest'
-    copy_js_files_not_test(results, js_source_root, not_test_dir, code_json_dir, limit=30)
+    
+    with open(log_path, 'w', encoding='utf-8') as log_file:
+        log_file.write(f"=== Processing ID {id_num} ===\n")
+        log_file.write(f"JSON Input : {json_path}\n")
+        log_file.write(f"JS Source  : {js_source_root}\n")
+        log_file.write(f"Code JSONs : {code_json_dir}\n")
+        log_file.write(f"Total files in JSON: {total_files}\n\n")
+        
+        copy_js_files_not_test(results, js_source_root, not_test_dir, code_json_dir, log_file, limit=30)
 
 
 def main():
