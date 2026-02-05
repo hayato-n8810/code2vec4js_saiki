@@ -178,7 +178,9 @@ def process_id(id_num: int, script_dir: Path):
     js_source_root = script_dir.parent / 'target' / f'id_{id_num}_toRepo'
     
     # outputs/extracted_code/id_X ディレクトリ
-    code_json_dir = script_dir.parent / 'outputs' / 'extracted_code' / f'id_{id_num}'
+    pattern_id = {1: 10, 2: 18, 3: 222, 4: 827, 5: 11, 6: 874}
+    pid = pattern_id[id_num]
+    code_json_dir = script_dir.parent / 'outputs' / 'extracted_code' / f'id_{pid}'
     
     if not json_path.exists():
         print(f"[SKIP] JSON file not found for ID {id_num}: {json_path}", file=sys.stderr)
