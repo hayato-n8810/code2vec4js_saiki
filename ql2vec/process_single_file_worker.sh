@@ -12,12 +12,17 @@ if [ ! -f "$js_file" ]; then
   exit 1
 fi
 
-# Extract project info
-project_name=$(basename "$(dirname "$js_file")")
+# Extract project info relative to TARGET_BASE_DIR
+# Remove TARGET_BASE_DIR prefix and get the first directory component
+relative_path="${js_file#${TARGET_BASE_DIR}/}"
+project_name=$(echo "$relative_path" | cut -d'/' -f1)
 file_name=$(basename "$js_file" .js)
 
-# Setup output directories
-output_base="/code2vec/results/${project_name}"
+# Get base directory name (e.g., id_222 from /code2vec/target/id_222)
+base_dir_name=$(basename "$TARGET_BASE_DIR")
+
+# Setup output directories with base directory structure
+output_base="/code2vec/results/${base_dir_name}/${project_name}"
 c2v_dir="${output_base}/c2v"
 vector_dir="${output_base}/vectors"
 log_file="${output_base}/process.log"

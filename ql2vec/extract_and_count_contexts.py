@@ -9,33 +9,30 @@ This script performs:
 4. Output: Save results to JSON file
 
 Expected Input Structure:
-    target/id_222/
-      {project1}/
-        {project1}_1.js
-        {project1}_2.js
-      {project2}/
-        {project2}_1.js
+    target/some_folder/
+        file1.js
+        file2.js
+        file3.js
         ...
 
 Output Structure:
-    results/{project}/txt/{file}.test.raw.txt
-    results/{project}/context_count.json
+    results/txt/{file}.test.raw.txt
+    results/context_count.json
 
 Usage:
-    python3 extract_and_count_contexts.py --input target/id_222 --output results [--jobs 8]
+    python3 extract_and_count_contexts.py --input target/some_folder --output results [--jobs 8]
 """
 
-import os
-import sys
-import subprocess
-import multiprocessing
-import re
 import json
+import multiprocessing
+import os
+import re
+import subprocess
+import sys
+import time
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional
-import time
-import tempfile
+from typing import Dict, List, Tuple
 
 
 class ContextExtractorCounter:
@@ -83,7 +80,7 @@ class ContextExtractorCounter:
             
             return result.returncode == 0 and output_file.stat().st_size > 0
             
-        except (subprocess.TimeoutExpired, Exception) as e:
+        except (subprocess.TimeoutExpired, Exception):
             if output_file.exists():
                 output_file.unlink()
             return False
@@ -116,7 +113,7 @@ class ContextExtractorCounter:
             
             return {'lines': total_lines, 'contexts': total_contexts}
             
-        except Exception as e:
+        except Exception:
             return {'lines': -1, 'contexts': -1}
 
 
@@ -125,21 +122,21 @@ def process_single_file(args_tuple: Tuple) -> Dict:
     Process a single JS file (for parallel execution)
     
     Args:
-        args_tuple: (js_file_path, project_name, results_base_dir, extractor_config)
+        args_tuple: (js_file_path, results_base_dir, extractor_config)
     
     Returns:
         dict with processing results
     """
-    js_file, project_name, results_base_dir, config = args_tuple
+    js_file, results_base_dir, config = args_tuple
     
     js_path = Path(js_file)
     base_name = js_path.stem
     
-    # Output to results/{project}/txt/
-    project_output_dir = Path(results_base_dir) / project_name / 'txt'
-    project_output_dir.mkdir(parents=True, exist_ok=True)
+    # Output to results/txt/
+    output_dir = Path(results_base_dir) / 'txt'
+    output_dir.mkdir(parents=True, exist_ok=True)
     
-    raw_file = project_output_dir / f"{base_name}.test.raw.txt"
+    raw_file = output_dir / f"{base_name}.test.raw.txt"
     
     extractor = ContextExtractorCounter(
         max_path_length=config['max_path_length'],
@@ -150,7 +147,6 @@ def process_single_file(args_tuple: Tuple) -> Dict:
     result = {
         'file': str(js_path),
         'base_name': base_name,
-        'project': project_name,
         'status': 'error',
         'contexts': 'error',
         'lines': 0,
@@ -200,40 +196,28 @@ def process_single_file(args_tuple: Tuple) -> Dict:
         return result
 
 
-def find_js_files_by_project(input_dir: Path) -> Dict[str, List[Path]]:
+def find_js_files(input_dir: Path) -> List[Path]:
     """
-    Find all .js files grouped by project directory
+    Find all .js files in the specified directory
     
-    Expected structure: input_dir/{project}/{project}_{id}.js
+    Expected structure: input_dir/*.js
     
     Returns:
-        dict mapping project_name -> list of js files
+        list of js file paths
     """
-    projects_files = {}
-    
-    # Find all project directories (first level subdirectories)
     if not input_dir.exists():
-        return projects_files
+        return []
     
-    for project_dir in sorted(input_dir.iterdir()):
-        if not project_dir.is_dir():
-            continue
-        
-        project_name = project_dir.name
-        js_files = sorted(project_dir.glob('*.js'))
-        
-        if js_files:
-            projects_files[project_name] = js_files
-    
-    return projects_files
+    js_files = sorted(input_dir.glob('*.js'))
+    return js_files
 
 
 def main():
     parser = ArgumentParser(description='Extract and count contexts from JS files in parallel')
     parser.add_argument('-i', '--input', required=True, 
-                        help='Input directory (e.g., target/id_222) containing project subdirectories')
+                        help='Input directory containing .js files')
     parser.add_argument('-o', '--output', required=True, 
-                        help='Output base directory (e.g., results)')
+                        help='Output directory (e.g., results)')
     parser.add_argument('-j', '--jobs', type=int, default=None, 
                         help='Number of parallel jobs (default: CPU count)')
     parser.add_argument('--max_path_length', type=int, default=8, 
@@ -257,18 +241,16 @@ def main():
     # Create base output directory
     results_base_dir.mkdir(parents=True, exist_ok=True)
     
-    # Find all JS files grouped by project
-    projects_files = find_js_files_by_project(input_dir)
+    # Find all JS files in the directory
+    js_files = find_js_files(input_dir)
     
-    if not projects_files:
-        print(f"[ERROR] No project directories with .js files found in {input_dir}", file=sys.stderr)
+    if not js_files:
+        print(f"[ERROR] No .js files found in {input_dir}", file=sys.stderr)
         sys.exit(1)
     
     # Count total files
-    total_files = sum(len(files) for files in projects_files.values())
-    print(f"[INFO] Found {len(projects_files)} project(s) with {total_files} JS file(s)")
-    for project, files in projects_files.items():
-        print(f"  - {project}: {len(files)} files")
+    total_files = len(js_files)
+    print(f"[INFO] Found {total_files} JS file(s) in {input_dir}")
     
     # Determine number of parallel jobs
     num_jobs = args.jobs or multiprocessing.cpu_count()
@@ -282,14 +264,11 @@ def main():
     }
     
     # Prepare arguments for parallel execution
-    # Each arg: (js_file, project_name, results_base_dir, config)
-    process_args = []
-    for project_name, js_files in projects_files.items():
-        for js_file in js_files:
-            process_args.append((js_file, project_name, results_base_dir, config))
+    # Each arg: (js_file, results_base_dir, config)
+    process_args = [(js_file, results_base_dir, config) for js_file in js_files]
     
     # Process files in parallel
-    print(f"[INFO] Processing files...")
+    print("[INFO] Processing files...")
     start_time = time.time()
     
     success_count = 0
@@ -297,23 +276,22 @@ def main():
     error_count = 0
     total_contexts = 0
     
-    # Dictionary to store context counts per project
-    project_context_counts = {project: {} for project in projects_files.keys()}
+    # Dictionary to store context counts
+    context_counts = {}
     
     with multiprocessing.Pool(processes=num_jobs) as pool:
         results = pool.imap_unordered(process_single_file, process_args)
         
         for i, result in enumerate(results, 1):
             base_name = result['base_name']
-            project_name = result['project']
             
             if result['status'] == 'success':
                 success_count += 1
                 total_contexts += result['contexts']
-                project_context_counts[project_name][base_name] = result['contexts']
+                context_counts[base_name] = result['contexts']
                 
                 if args.verbose:
-                    print(f"[{i}/{total_files}] ✓ {project_name}/{base_name}: "
+                    print(f"[{i}/{total_files}] ✓ {base_name}: "
                           f"{result['lines']} lines, {result['contexts']} contexts")
                 else:
                     # Progress indicator
@@ -322,50 +300,32 @@ def main():
             
             elif result['status'] == 'empty':
                 empty_count += 1
-                project_context_counts[project_name][base_name] = 0
+                context_counts[base_name] = 0
                 if args.verbose:
-                    print(f"[{i}/{total_files}] ⚠ {project_name}/{base_name}: No valid contexts")
+                    print(f"[{i}/{total_files}] ⚠ {base_name}: No valid contexts")
             
             else:  # error
                 error_count += 1
-                project_context_counts[project_name][base_name] = 'error'
+                context_counts[base_name] = 'error'
                 if args.verbose:
-                    print(f"[{i}/{total_files}] ✗ {project_name}/{base_name}: {result['error']}")
+                    print(f"[{i}/{total_files}] ✗ {base_name}: {result['error']}")
     
     elapsed_time = time.time() - start_time
     
-    # Write context counts to JSON file for each project
-    print("\n[INFO] Writing JSON files...")
+    # Write context counts to JSON file
+    print("\n[INFO] Writing JSON file...")
     
-    # Collect all context counts for the combined JSON
-    all_context_counts = {}
+    json_output_path = results_base_dir / 'context_count.json'
+    with open(json_output_path, 'w', encoding='utf-8') as f:
+        json.dump(context_counts, f, indent=2, ensure_ascii=False)
     
-    for project_name, context_counts in project_context_counts.items():
-        # Write per-project JSON
-        json_output_path = results_base_dir / project_name / 'context_count.json'
-        json_output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(json_output_path, 'w', encoding='utf-8') as f:
-            json.dump(context_counts, f, indent=2, ensure_ascii=False)
-        
-        print(f"  - {project_name}: {json_output_path}")
-        
-        # Add to combined dictionary
-        all_context_counts.update(context_counts)
-    
-    # Write combined all_context_count.json
-    all_json_output_path = results_base_dir / 'all_context_count.json'
-    with open(all_json_output_path, 'w', encoding='utf-8') as f:
-        json.dump(all_context_counts, f, indent=2, ensure_ascii=False)
-    
-    print(f"  - ALL PROJECTS: {all_json_output_path}")
+    print(f"  - Output: {json_output_path}")
     
     # Summary
     print("\n")
     print("=" * 60)
     print("  Context Extraction & Counting Summary")
     print("=" * 60)
-    print(f"Total projects:     {len(projects_files)}")
     print(f"Total files:        {total_files}")
     print(f"Success:            {success_count}")
     print(f"Empty (no contexts): {empty_count}")
@@ -375,13 +335,12 @@ def main():
         print(f"Avg contexts/file:  {total_contexts / success_count:.1f}")
     print(f"Processing time:    {elapsed_time:.1f}s")
     print(f"Output directory:   {results_base_dir}")
-    print(f"Combined JSON:      {all_json_output_path}")
+    print(f"JSON output:        {json_output_path}")
     print("=" * 60)
     
     # Write summary to file
     summary_file = results_base_dir / 'extraction_summary.txt'
     with open(summary_file, 'w') as f:
-        f.write(f"Total projects: {len(projects_files)}\n")
         f.write(f"Total files: {total_files}\n")
         f.write(f"Success: {success_count}\n")
         f.write(f"Empty: {empty_count}\n")

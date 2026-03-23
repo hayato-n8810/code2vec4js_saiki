@@ -10,7 +10,6 @@ Example:
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -68,6 +67,8 @@ def extract_code_snippets(input_dir: str, output_dir: str):
         
         if not results:
             print(f"  [WARN] No results found in {json_file.name}")
+            # 作成したディレクトリを削除
+            project_output_dir.rmdir()
             continue
         
         print(f"  Found {len(results)} code snippet(s)")
@@ -78,7 +79,7 @@ def extract_code_snippets(input_dir: str, output_dir: str):
             code_snippet = result.get("code_snippet", "")
             
             if snippet_id is None:
-                print(f"  [WARN] Result missing 'id' field, skipping")
+                print("  [WARN] Result missing 'id' field, skipping")
                 continue
             
             if not code_snippet:
