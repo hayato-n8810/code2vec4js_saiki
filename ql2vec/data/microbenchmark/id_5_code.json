@@ -1,0 +1,208 @@
+{
+    "metadata": {
+        "sarif_path": "/works/outputs/microbenchmark/sarif/id_5.sarif",
+        "repository_path": "/works/targets/microbenchmark/separate_slow",
+        "total_results": 18,
+        "extraction_date": "2026-03-18T06:22:11.845428"
+    },
+    "results": [
+        {
+            "id": 0,
+            "file_path": "slow_10328.js",
+            "start_line": 2,
+            "end_line": 2,
+            "start_column": 9,
+            "end_column": 42,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "VAR_2 = JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 1,
+            "file_path": "slow_10863.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 9,
+            "end_column": 42,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "VAR_2 = JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 2,
+            "file_path": "slow_10887.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 9,
+            "end_column": 42,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "VAR_2 = JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 3,
+            "file_path": "slow_11.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 9,
+            "end_column": 42,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "VAR_4 = JSON.parse(JSON.stringify(VAR_2));\n"
+        },
+        {
+            "id": 4,
+            "file_path": "slow_11296.js",
+            "start_line": 1,
+            "end_line": 4,
+            "start_column": null,
+            "end_column": 4,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "JSON.parse(\n  JSON.stringify(VAR_1, function (VAR_2, VAR_3) {\n    if (VAR_3.KEY_1) return null;\n    return VAR_3;\n  }),\n);\n"
+        },
+        {
+            "id": 5,
+            "file_path": "slow_13677.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 13,
+            "end_column": 46,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_2 = JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 6,
+            "file_path": "slow_28360.js",
+            "start_line": 5,
+            "end_line": 5,
+            "start_column": 26,
+            "end_column": 59,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "VAR_4[VAR_3[VAR_10]] = JSON.parse(JSON.stringify(VAR_6));\n"
+        },
+        {
+            "id": 7,
+            "file_path": "slow_347.js",
+            "start_line": 9,
+            "end_line": 9,
+            "start_column": 13,
+            "end_column": 46,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_5 = JSON.parse(JSON.stringify(VAR_4));\n"
+        },
+        {
+            "id": 8,
+            "file_path": "slow_4794.js",
+            "start_line": 30,
+            "end_line": 30,
+            "start_column": 10,
+            "end_column": 43,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "return JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 9,
+            "file_path": "slow_564.js",
+            "start_line": 3,
+            "end_line": 3,
+            "start_column": 15,
+            "end_column": 55,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_6 = JSON.parse(JSON.stringify(VAR_1[VAR_5]));\n"
+        },
+        {
+            "id": 10,
+            "file_path": "slow_565.js",
+            "start_line": 2,
+            "end_line": 2,
+            "start_column": 15,
+            "end_column": 55,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_6 = JSON.parse(JSON.stringify(VAR_1[VAR_5]));\n"
+        },
+        {
+            "id": 11,
+            "file_path": "slow_5851.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 13,
+            "end_column": 46,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_2 = JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 12,
+            "file_path": "slow_6004.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 13,
+            "end_column": 46,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_2 = JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 13,
+            "file_path": "slow_6973.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 13,
+            "end_column": 51,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_2 = JSON.parse(JSON.stringify(this.VAR_1));\n"
+        },
+        {
+            "id": 14,
+            "file_path": "slow_7642.js",
+            "start_line": 11,
+            "end_line": 11,
+            "start_column": 10,
+            "end_column": 43,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "return JSON.parse(JSON.stringify(VAR_4));\n"
+        },
+        {
+            "id": 15,
+            "file_path": "slow_8031.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 13,
+            "end_column": 46,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_2 = JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 16,
+            "file_path": "slow_8160.js",
+            "start_line": 1,
+            "end_line": 1,
+            "start_column": 13,
+            "end_column": 46,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "var VAR_2 = JSON.parse(JSON.stringify(VAR_1));\n"
+        },
+        {
+            "id": 17,
+            "file_path": "slow_8400.js",
+            "start_line": 6,
+            "end_line": 6,
+            "start_column": 25,
+            "end_column": 58,
+            "message": "This contains performance implications.",
+            "severity": "warning",
+            "code_snippet": "VAR_4[VAR_3[VAR_9]] = JSON.parse(JSON.stringify(VAR_5));\n"
+        }
+    ]
+}
