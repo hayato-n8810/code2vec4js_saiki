@@ -1,7 +1,7 @@
 *.class
 *.lst
 **/models/**
-**/data/**
+/data
 **/.idea/**
 *.tar.gz
 **/log.txt
@@ -21,7 +21,7 @@ tmp/
 **/results/**
 
 # テスト用
-**/target/**
+**/targets/**
 
 # 類似度結果
 **/similarity/**
