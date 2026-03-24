@@ -18,19 +18,23 @@ Microbenchmark vectors と origin_pattern vectors のコサイン類似度を計
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 
-SLOW_TARGET_PATTERN = re.compile(r"^slow_(.+)$")
-ORIGIN_BLOCK_SLOW_PATTERN = re.compile(r"^block_slow_(.+)$")
-
 
 def cos_sim(v1: np.ndarray, v2: np.ndarray) -> float:
-    """2つのベクトルのコサイン類似度を返す。"""
+    """2つのベクトルのコサイン類似度を返す
+
+    Args:
+        v1 (np.ndarray): ベクトル(numpy配列)
+        v2 (np.ndarray): ベクトル(numpy配列)
+
+    Returns:
+        float: コサイン類似度
+    """
     norm1 = np.linalg.norm(v1)
     norm2 = np.linalg.norm(v2)
     if norm1 == 0 or norm2 == 0:
@@ -39,74 +43,59 @@ def cos_sim(v1: np.ndarray, v2: np.ndarray) -> float:
 
 
 def load_vector(file_path: Path) -> np.ndarray:
-    """.vector ファイルを読み込み、numpy配列として返す。"""
+    """.vector ファイルを読み込み，numpy配列として返す
+
+    Args:
+        file_path (Path): vectorファイルパス
+
+    Returns:
+        np.ndarray: numpy配列
+    """
     try:
         content = file_path.read_text(encoding="utf-8").strip()
         if not content:
             return np.array([])
         values = [float(v) for v in content.split()]
         return np.array(values, dtype=float)
-    except Exception as exc:  # pylint: disable=broad-except
-        print(f"[ERROR] Failed to load {file_path}: {exc}", file=sys.stderr)
+    except Exception as e:
+        print(f"[ERROR] Failed to load {file_path}: {e}", file=sys.stderr)
         return np.array([])
 
 
-def extract_target_file_id(target_stem: str) -> Optional[str]:
-    """slow_{file_id} 形式から file_id を抽出する。"""
-    match = SLOW_TARGET_PATTERN.match(target_stem)
-    if not match:
-        return None
-    return match.group(1)
-
-
-def extract_origin_file_id(origin_stem: str) -> Optional[str]:
-    """block_slow_{file_id} 形式から file_id を抽出する。"""
-    match = ORIGIN_BLOCK_SLOW_PATTERN.match(origin_stem)
-    if not match:
-        return None
-    return match.group(1)
-
-
-def collect_origin_vectors(origin_vectors_dir: Path) -> Dict[str, np.ndarray]:
-    """origin_pattern 側ベクトルを読み込む。キーはファイル名 stem。"""
-    vector_files = sorted(origin_vectors_dir.glob("*.vector"))
-    vectors: Dict[str, np.ndarray] = {}
-    for vf in vector_files:
-        vec = load_vector(vf)
-        if vec.size > 0:
-            vectors[vf.stem] = vec
-    return vectors
-
-
-def collect_microbenchmark_vector_files(microbenchmark_base_dir: Path) -> List[Path]:
-    """microbenchmark 側の slow_*.vector を再帰検索して返す。"""
-    return sorted(microbenchmark_base_dir.glob("**/vectors/slow_*.vector"))
-
-
 def calculate_for_id(id_num: int, root_dir: Path) -> Dict[str, Any]:
-    """指定 id の類似度計算を実行し、JSON出力用 dict を返す。"""
-    origin_vectors_dir = root_dir / "data" / "origin_pattern" / f"id_{id_num}" / "vectors"
-    microbenchmark_vectors_base = root_dir / "outputs" / "vec" / "microbenchmark" / f"id_{id_num}"
+    """指定した id の類似度計算を実行し，JSON出力用 dict を返す
 
+    Args:
+        id_num (int): クエリIDの指定
+        root_dir (Path): ルートパス
+
+    Raises:
+        FileNotFoundError:
+        RuntimeError:
+
+    Returns:
+        Dict[str, Any]: 出力用統計情報Dict
+    """
+    origin_vectors_dir = root_dir / "data" / "origin_pattern" / f"id_{id_num}" / "vectors"
+    microbenchmark_vectors_base = root_dir / "outputs" / "vec" / "microbenchmark" / f"id_{id_num}" / "vectors"
+
+    # origin_pattern 側の*.vector を再帰検索して返す
     if not origin_vectors_dir.exists():
         raise FileNotFoundError(f"origin vectors directory not found: {origin_vectors_dir}")
-    if not microbenchmark_vectors_base.exists():
-        raise FileNotFoundError(
-            f"microbenchmark vectors directory not found: {microbenchmark_vectors_base}"
-        )
-
-    print(f"[INFO] Loading origin vectors: {origin_vectors_dir}")
-    origin_vectors = collect_origin_vectors(origin_vectors_dir)
+    origin_vectors = sorted(origin_vectors_dir.glob("*.vector"))
     if not origin_vectors:
         raise RuntimeError(f"No valid origin vectors found in: {origin_vectors_dir}")
 
-    first_origin_name = next(iter(origin_vectors))
-    expected_dim = origin_vectors[first_origin_name].size
+    # 検出結果側の *.vector を再帰検索して返す
+    if not microbenchmark_vectors_base.exists():
+        raise FileNotFoundError(f"microbenchmark vectors directory not found: {microbenchmark_vectors_base}")
+    microbenchmark_files = sorted(microbenchmark_vectors_base.glob("*.vector"))
+    print(f"[INFO] Microbenchmark target vectors found: {len(microbenchmark_files)}")
+
+    # 次元数確認
+    expected_dim = load_vector(origin_vectors[0]).size
     print(f"[INFO] Origin vectors loaded: {len(origin_vectors)}")
     print(f"[INFO] Origin vector dimension: {expected_dim}")
-
-    microbenchmark_files = collect_microbenchmark_vector_files(microbenchmark_vectors_base)
-    print(f"[INFO] Microbenchmark target vectors found: {len(microbenchmark_files)}")
 
     results: List[Dict[str, Any]] = []
     processed = 0
@@ -114,28 +103,30 @@ def calculate_for_id(id_num: int, root_dir: Path) -> Dict[str, Any]:
     excluded_pairs = 0
 
     for mf in microbenchmark_files:
+        target_file = mf.stem
+        target_file_id = target_file.split("_")[-1]
+
         target_vector = load_vector(mf)
         if target_vector.size == 0:
             skipped += 1
             continue
 
         if target_vector.size != expected_dim:
-            print(
-                f"[WARN] Dimension mismatch: {mf} "
-                f"(expected {expected_dim}, got {target_vector.size})",
-                file=sys.stderr,
-            )
+            print(f"[WARN] Dimension mismatch: {mf} - {target_vector.size}", file=sys.stderr,)
             skipped += 1
             continue
-
-        target_stem = mf.stem
-        target_file_id = extract_target_file_id(target_stem)
 
         similarities: Dict[str, float] = {}
         similarity_values: List[float] = []
 
-        for origin_name, origin_vec in origin_vectors.items():
-            origin_file_id = extract_origin_file_id(origin_name)
+        for ov in origin_vectors:
+            origin_file = ov.stem
+            origin_file_id = origin_file.split("_")[-1]
+
+            origin_vector = load_vector(ov)
+            if origin_vector.size == 0:
+                skipped += 1
+                continue
             # target file_id と origin block_slow file_id が一致する組み合わせは除外
             if (
                 target_file_id is not None
@@ -145,8 +136,8 @@ def calculate_for_id(id_num: int, root_dir: Path) -> Dict[str, Any]:
                 excluded_pairs += 1
                 continue
 
-            sim = cos_sim(origin_vec, target_vector)
-            similarities[origin_name] = sim
+            sim = cos_sim(origin_vector, target_vector)
+            similarities[origin_file] = sim
             similarity_values.append(sim)
 
         if not similarity_values:
@@ -155,7 +146,7 @@ def calculate_for_id(id_num: int, root_dir: Path) -> Dict[str, Any]:
 
         results.append(
             {
-                "file": target_stem,
+                "file": target_file,
                 "cos_similarity": [similarities],
                 "mean": float(np.mean(similarity_values)),
                 "var": float(np.var(similarity_values)),
@@ -172,15 +163,6 @@ def calculate_for_id(id_num: int, root_dir: Path) -> Dict[str, Any]:
         "total_count": len(results),
         "results": results,
     }
-
-
-def save_json(data: Dict[str, Any], output_path: Path) -> None:
-    """計算結果をJSON保存する。"""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    print(f"[SUCCESS] Saved: {output_path}")
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -216,6 +198,11 @@ if __name__ == "__main__":
             output_path = (
                 root_dir / "outputs" / "similarity" / "microbenchmark" / f"id_{id_num}_similarity.json"
             )
-            save_json(output_data, output_path)
+
+            # 保存
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with output_path.open("w", encoding="utf-8") as f:
+                json.dump(output_data, f, ensure_ascii=False, indent=2)
+            print(f"[SUCCESS] Saved: {output_path}")
         except Exception as e:
             print(f"[ERROR] id_{id_num} failed: {e}", file=sys.stderr)
