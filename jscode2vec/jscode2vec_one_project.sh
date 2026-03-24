@@ -58,7 +58,7 @@ done
 # ---------- Output directory setup ----------
 # Extract project name from target directory (e.g., /path/to/target_dir_js -> target_dir_js)
 PROJECT_NAME=$(basename "$TARGET_DIR_JS")
-OUTPUT_BASE_DIR="/code2vec/results/${PROJECT_NAME}"
+OUTPUT_BASE_DIR="/code2vec/jscode2vec/outputs/vec/microbenchmark/${PROJECT_NAME}"
 C2V_OUTPUT_DIR="${OUTPUT_BASE_DIR}/c2v"
 VECTOR_OUTPUT_DIR="${OUTPUT_BASE_DIR}/vectors"
 
@@ -131,7 +131,7 @@ for jsf in "${JS_FILES[@]}"; do
   echo "[STEP] Preprocessing to MAX_CONTEXTS=$MAX_CONTEXTS"
   # Use base_name without extension for output_name
   # ベクトル化するために，code2vecの入力形式に合わせたデータに変換
-  if ! $PYTHON_BIN /code2vec/ql2vec/preprocess_test.py \
+  if ! $PYTHON_BIN /code2vec/jscode2vec/preprocess_test.py \
       --test_data "$raw_file" \
       --max_contexts "$MAX_CONTEXTS" \
       --word_vocab_size "$WORD_VOCAB_SIZE" \
@@ -154,7 +154,7 @@ for jsf in "${JS_FILES[@]}"; do
   fi
 
   echo "[STEP] Exporting vectors"
-  if ! $PYTHON_BIN /code2vec/ql2vec/code2vec_only.py \
+  if ! $PYTHON_BIN /code2vec/jscode2vec/code2vec_only.py \
       --load /code2vec/models/js_dataset_min5/saved_model_iter19.release \
       --test "$c2v_file" \
       --export_code_vectors; then

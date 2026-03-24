@@ -1,4 +1,4 @@
-# ql2vec - Query to Vector Pipeline
+# jscode2vec - Query to Vector Pipeline
 
 このディレクトリには、JavaScriptコード（*.js）を code2vec の入力形式に変換し、学習済みモデルで `.vector` を生成するためのパイプラインスクリプトが含まれています。
 
@@ -33,7 +33,7 @@
 
 ```
 /code2vec/                      # プロジェクトルート（./がマウント）
-├── ql2vec/                     # このディレクトリ
+├── jscode2vec/                     # このディレクトリ
 │   ├── jscode2vec_parallel.sh
 │   ├── jscode2vec_file_parallel_shm.sh
 │   ├── process_project_worker.sh
@@ -60,7 +60,7 @@
 /data/                          # 外部データマウントポイント
 └── sampling/train/             # 学習データ（build_trainHist.sh用）
 
-/code2vec/ql2vec/similarity/    # 類似度計算結果（bachelor配下）
+/code2vec/jscode2vec/similarity/    # 類似度計算結果（bachelor配下）
 └── bachelor/id_{n}/id_{n}_similarity.json
 ```
 
@@ -73,7 +73,7 @@
 docker exec -it code2vec4js bash
 
 # 並列処理（複数プロジェクト / プロジェクト単位・推奨）
-cd /code2vec/ql2vec
+cd /code2vec/jscode2vec
 ./jscode2vec_parallel.sh /absolute/path/to/target_dir_js [max_parallel_jobs]
 
 # 並列処理（ファイル単位：大量ファイル向け）
@@ -83,7 +83,7 @@ cd /code2vec/ql2vec
 ./jscode2vec_one_project.sh /absolute/path/to/project_dir
 
 # ヒストグラムの事前ロード（任意・初回のみ推奨）
-python3 /code2vec/ql2vec/preload_histograms.py --dataset js_dataset_min5
+python3 /code2vec/jscode2vec/preload_histograms.py --dataset js_dataset_min5
 
 # 学習用ヒストグラム構築
 # /data/sampling/train を入力としてヒストグラムを生成
@@ -91,7 +91,7 @@ PYTHON=python3 ./build_trainHist.sh
 
 # 類似度計算
 # id_1〜id_6 を固定で処理（詳細は「類似度計算」参照）
-python3 /code2vec/ql2vec/calculate_similarity.py
+python3 /code2vec/jscode2vec/calculate_similarity.py
 ```
 
 ### 入力・出力例
@@ -189,7 +189,7 @@ export PYTHONPATH=/code2vec:$PYTHONPATH
 ```bash
 # キャッシュファイルを削除して再生成
 rm /code2vec/data/js_dataset_min5/histogram_cache.pkl*
-python3 /code2vec/ql2vec/preload_histograms.py --dataset js_dataset_min5
+python3 /code2vec/jscode2vec/preload_histograms.py --dataset js_dataset_min5
 ```
 
 ### `timeout` が見つからない
@@ -205,13 +205,13 @@ Docker外（macOSホストなど）で直接実行すると `timeout` が無い�
 
 ### 基本的な使い方
 
-`ql2vec/origin_pattern/id_{n}/vectors` 配下のベースベクトル（複数）と、
+`jscode2vec/origin_pattern/id_{n}/vectors` 配下のベースベクトル（複数）と、
 `results/id_{n}_toRepo` 配下のターゲットベクトル（複数）とのコサイン類似度を計算します。
 各ターゲットファイルについて、複数のベースベクトルとの類似度・平均値・分散を算出し、`mean` の降順でソートして保存します。
 
 ```bash
 # Docker環境で実行
-cd /code2vec/ql2vec
+cd /code2vec/jscode2vec
 
 # id_1〜id_6 を順に処理してJSONを出力
 python3 calculate_similarity.py
@@ -221,10 +221,10 @@ python3 calculate_similarity.py
 
 類似度計算を実行する前に、以下のディレクトリにベースとなる `.vector` を配置してください。
 
-- `/code2vec/ql2vec/origin_pattern/id_1/vectors/*.vector`
-- `/code2vec/ql2vec/origin_pattern/id_2/vectors/*.vector`
+- `/code2vec/jscode2vec/origin_pattern/id_1/vectors/*.vector`
+- `/code2vec/jscode2vec/origin_pattern/id_2/vectors/*.vector`
 - ...
-- `/code2vec/ql2vec/origin_pattern/id_6/vectors/*.vector`
+- `/code2vec/jscode2vec/origin_pattern/id_6/vectors/*.vector`
 
 ターゲット側はデフォルトで次を参照します（スクリプト内で固定）:
 
@@ -236,7 +236,7 @@ python3 calculate_similarity.py
 
 結果は次の場所に保存されます。
 
-- `/code2vec/ql2vec/similarity/bachelor/id_{n}/id_{n}_similarity.json`
+- `/code2vec/jscode2vec/similarity/bachelor/id_{n}/id_{n}_similarity.json`
 
 ```json
 {

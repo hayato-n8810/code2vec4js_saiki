@@ -102,7 +102,7 @@ echo "  Revolutionary Shared Memory Histogram Approach"
 echo "============================================================"
 echo ""
 
-HISTOGRAM_SERVER_SCRIPT="/code2vec/ql2vec/histogram_server.py"
+HISTOGRAM_SERVER_SCRIPT="/code2vec/jscode2vec/histogram_server.py"
 HISTOGRAM_SERVER_PID=""
 SERVER_OWNER=false  # Track if we started the server
 
@@ -230,7 +230,7 @@ find "$TARGET_BASE_DIR" -type f -name "*.js" -print0 | \
     --env TARGET_HISTO \
     --env TARGET_BASE_DIR \
     --env MODEL_PATH \
-    /code2vec/ql2vec/process_single_file_worker.sh {}
+    /code2vec/jscode2vec/process_single_file_worker.sh {}
 
 echo ""
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All files processed"

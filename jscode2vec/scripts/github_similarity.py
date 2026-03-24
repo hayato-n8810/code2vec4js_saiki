@@ -4,10 +4,10 @@ GitHub vectors と origin_pattern vectors のコサイン類似度を計算す�
 
 要件:
 - 入力:
-  - /code2vec/ql2vec/outputs/vec/github/id_{id}/{project_name}/{project_name}/vectors/{project_name}_{file_id}.vector
-  - /code2vec/ql2vec/data/origin_pattern/id_{id}/vectors/*.vector
+  - /code2vec/jscode2vec/outputs/vec/github/id_{id}/{project_name}/{project_name}/vectors/{project_name}_{file_id}.vector
+  - /code2vec/jscode2vec/data/origin_pattern/id_{id}/vectors/*.vector
 - 出力:
-  - /code2vec/ql2vec/outputs/similarity/github/id_{id}_similarity.json
+  - /code2vec/jscode2vec/outputs/similarity/github/id_{id}_similarity.json
 - 出力JSON:
   - total_count
   - results[]: file, cos_similarity, mean, var
@@ -160,8 +160,8 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument(
 		"--root",
 		type=Path,
-		default=Path("/code2vec/ql2vec"),
-		help="root directory of ql2vec (default: /code2vec/ql2vec)",
+		default=Path("/code2vec/jscode2vec"),
+		help="root directory of jscode2vec (default: /code2vec/jscode2vec)",
 	)
 	return parser.parse_args()
 

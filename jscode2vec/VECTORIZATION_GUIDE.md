@@ -28,7 +28,7 @@
 
 ```
 /code2vec/                           # プロジェクトルート
-├── ql2vec/                          # ベクトル化パイプライン（このディレクトリ）
+├── jscode2vec/                          # ベクトル化パイプライン（このディレクトリ）
 │   ├── code2vec_only.py            # ベクトル化専用スクリプト
 │   ├── preprocess_test.py          # 前処理スクリプト
 │   ├── preload_histograms.py       # ヒストグラムキャッシュ
@@ -62,7 +62,7 @@
 ```bash
 # Dockerコンテナ内で実行
 docker exec -it code2vec4js bash
-cd /code2vec/ql2vec
+cd /code2vec/jscode2vec
 
 # プロジェクトディレクトリを指定して実行
 ./jscode2vec_one_project.sh /path/to/project_dir
@@ -131,7 +131,7 @@ mv mydata.test.raw.txt.tmp mydata.test.raw.txt
 
 ```bash
 # 学習時と同じ辞書ヒストグラムを使用
-python3 /code2vec/ql2vec/preprocess_test.py \
+python3 /code2vec/jscode2vec/preprocess_test.py \
   --test_data mydata.test.raw.txt \
   --max_contexts 200 \
   --word_vocab_size 1301136 \
@@ -151,7 +151,7 @@ python3 /code2vec/ql2vec/preprocess_test.py \
 
 ```bash
 # ベクトル化のみ実行
-python3 /code2vec/ql2vec/code2vec_only.py \
+python3 /code2vec/jscode2vec/code2vec_only.py \
   --load /code2vec/models/js_dataset_min5/saved_model_iter19.release \
   --test mydata.test.c2v \
   --export_code_vectors
@@ -174,7 +174,7 @@ head -1 mydata.test.c2v | tr ' ' '\n' | wc -l
 # 期待値: 201 (1 target + 200 contexts)
 
 # MAX_CONTEXTSを正しく設定して再前処理
-python3 /code2vec/ql2vec/preprocess_test.py \
+python3 /code2vec/jscode2vec/preprocess_test.py \
   --test_data mydata.test.raw.txt \
   --max_contexts 200 \
   ...（以下同じ）
@@ -206,7 +206,7 @@ grep -v "^[a-zA-Z|]*\s*$" mydata.test.raw.txt | wc -l
 **対処**: ヒストグラムキャッシュを事前生成
 ```bash
 # 初回のみ実行（10-50倍高速化）
-python3 /code2vec/ql2vec/preload_histograms.py \
+python3 /code2vec/jscode2vec/preload_histograms.py \
   --dataset js_dataset_min5 \
   --word_vocab_size 1301136 \
   --path_vocab_size 911417 \
@@ -283,7 +283,7 @@ export TF_FORCE_GPU_ALLOW_GROWTH=true
 
 ## 関連ドキュメント
 
-- `README.md` - ql2vecパイプラインの概要
+- `README.md` - jscode2vecパイプラインの概要
 - `/code2vec/DOCKER_USAGE.md` - Docker環境の使用方法
 - `/code2vec/preprocess.sh` - 学習データの前処理（参考）
 
@@ -293,8 +293,8 @@ export TF_FORCE_GPU_ALLOW_GROWTH=true
 # 1. Dockerコンテナに入る
 docker exec -it code2vec4js bash
 
-# 2. ql2vecディレクトリに移動
-cd /code2vec/ql2vec
+# 2. jscode2vecディレクトリに移動
+cd /code2vec/jscode2vec
 
 # 3. ヒストグラムキャッシュを生成（初回のみ）
 python3 preload_histograms.py --dataset js_dataset_min5

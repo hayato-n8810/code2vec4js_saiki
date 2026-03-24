@@ -112,7 +112,7 @@ echo "  Project-Level Parallel Processing with Shared Memory"
 echo "============================================================"
 echo ""
 
-HISTOGRAM_SERVER_SCRIPT="/code2vec/ql2vec/histogram_server.py"
+HISTOGRAM_SERVER_SCRIPT="/code2vec/jscode2vec/histogram_server.py"
 HISTOGRAM_SERVER_PID=""
 SERVER_OWNER=false  # Track if we started the server
 
@@ -241,7 +241,7 @@ printf '%s\n' "${PROJECT_DIRS[@]}" | \
     --env TARGET_HISTO \
     --env TARGET_BASE_DIR \
     --env MODEL_PATH \
-    /code2vec/ql2vec/process_project_worker.sh {}
+    /code2vec/jscode2vec/process_project_worker.sh {}
 
 echo ""
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All projects processed"

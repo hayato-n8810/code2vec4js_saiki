@@ -96,7 +96,7 @@ MAX_RETRIES=2
 preprocess_success=false
 
 for retry in $(seq 1 $MAX_RETRIES); do
-  if $PYTHON_BIN /code2vec/ql2vec/preprocess_test.py \
+  if $PYTHON_BIN /code2vec/jscode2vec/preprocess_test.py \
       --test_data "$raw_file" \
       --max_contexts "$MAX_CONTEXTS" \
       --word_vocab_size "$WORD_VOCAB_SIZE" \
@@ -139,7 +139,7 @@ MODEL_PATH=${MODEL_PATH:-/code2vec/models/js_dataset_min5/saved_model_iter19.rel
 # Run with timeout using GNU timeout command
 # - 900s = 15 minutes (recommended for production)
 # - --kill-after=10s: Send SIGKILL if process doesn't terminate after SIGTERM
-if ! timeout --kill-after=10s 900s $PYTHON_BIN /code2vec/ql2vec/code2vec_only.py \
+if ! timeout --kill-after=10s 900s $PYTHON_BIN /code2vec/jscode2vec/code2vec_only.py \
     --load "$MODEL_PATH" \
     --test "$c2v_file" \
     --export_code_vectors >/dev/null 2>&1; then

@@ -11,7 +11,7 @@ Usage:
     python3 extract_code_snippets.py -mb
     
 Example:
-    python3 extract_code_snippets.py ql2vec/data/microbenchmark/id_1_code.json ql2vec/targets/microbenchmark/id_1
+    python3 extract_code_snippets.py json2vec/data/microbenchmark/id_1_code.json json2vec/targets/microbenchmark/id_1
     python3 extract_code_snippets.py -github
     python3 extract_code_snippets.py -mb
 """
@@ -120,13 +120,13 @@ def single_mode(input_json_file: str, output_dir: str) -> int:
 
 
 def github_mode() -> int:
-    """/ql2vec/data/github 配下のJsonファイル全てを対象とした処理
+    """/json2vec/data/github 配下のJsonファイル全てを対象とした処理
 
     Returns:
         int: 保存ファイル数
     """
-    input_base = Path("/code2vec/ql2vec/data/github")
-    output_base = Path("/code2vec/ql2vec/targets/github")
+    input_base = Path("/code2vec/json2vec/data/github")
+    output_base = Path("/code2vec/json2vec/targets/github")
 
     if not input_base.exists():
         print(f"[ERROR] GitHub input directory not found: {input_base}", file=sys.stderr)
@@ -172,13 +172,13 @@ def github_mode() -> int:
     return 0
 
 def microbenchmark_mode() -> int:
-    """/ql2vec/data/microbenchmark 配下のJsonファイル全てを対象とした処理
+    """/json2vec/data/microbenchmark 配下のJsonファイル全てを対象とした処理
 
     Returns:
         int: 保存ファイル数
     """
-    input_base = Path("/code2vec/ql2vec/data/microbenchmark")
-    output_base = Path("/code2vec/ql2vec/targets/microbenchmark")
+    input_base = Path("/code2vec/json2vec/data/microbenchmark")
+    output_base = Path("/code2vec/json2vec/targets/microbenchmark")
 
     if not input_base.exists():
         print(f"[ERROR] Microbenchmark input directory not found: {input_base}", file=sys.stderr)
@@ -234,7 +234,7 @@ if __name__ == "__main__":
         "-github",
         action="store_true",
         help=(
-            "Process all files under /code2vec/ql2vec/data/github/id_*/ and output to "
+            "Process all files under /code2vec/json2vec/data/github/id_*/ and output to "
             "/code2vec/targets/github/id_*/"
         ),
     )
@@ -242,8 +242,8 @@ if __name__ == "__main__":
         "-mb",
         action="store_true",
         help=(
-            "Process /code2vec/ql2vec/data/microbenchmark/id_{id}_code.json and output to "
-            "/code2vec/ql2vec/targets/microbenchmark/id_{id}/ as {file_path}.js"
+            "Process /code2vec/json2vec/data/microbenchmark/id_{id}_code.json and output to "
+            "/code2vec/json2vec/targets/microbenchmark/id_{id}/ as {file_path}.js"
         ),
     )
 
