@@ -32,7 +32,7 @@ class ShmManager:
         self.path_vocab_size = path_vocab_size
         self.target_vocab_size = target_vocab_size
         self.startup_timeout_sec = startup_timeout_sec
-        self.server_script = self.project_root / "jscode2vec" / "histogram_server.py"
+        self.server_script = self.project_root / "jscode2vec" / "scripts" / "histogram_server.py"
         self.metadata_file = Path(f"/tmp/code2vec_histograms_{dataset_name}_metadata.json")
         self.server_process: subprocess.Popen[str] | None = None
         self.session: ShmSession | None = None
@@ -72,7 +72,13 @@ class ShmManager:
         if self.session is None or not self.session.owner:
             return
 
-        command = [sys.executable, str(self.server_script), "stop"]
+        command = [
+            sys.executable,
+            str(self.server_script),
+            "--dataset",
+            self.dataset_name,
+            "stop",
+        ]
         subprocess.run(
             command,
             cwd=self.project_root,
@@ -96,7 +102,13 @@ class ShmManager:
         if not self.metadata_file.exists():
             return None
 
-        command = [sys.executable, str(self.server_script), "status"]
+        command = [
+            sys.executable,
+            str(self.server_script),
+            "--dataset",
+            self.dataset_name,
+            "status",
+        ]
         result = subprocess.run(
             command,
             cwd=self.project_root,

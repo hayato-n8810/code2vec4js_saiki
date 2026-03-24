@@ -7,12 +7,12 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-# jscode2vec 直下のモジュールを scripts 実行時にも解決できるようにする
-_JSCODE2VEC_ROOT = Path(__file__).resolve().parents[2]
-if str(_JSCODE2VEC_ROOT) not in sys.path:
-    sys.path.insert(0, str(_JSCODE2VEC_ROOT))
+from .histogram_shm_client import load_histograms_from_shared_memory
 
-from histogram_shm_client import load_histograms_from_shared_memory  # noqa: E402
+# scripts 経由実行時でもリポジトリルートの common.py を解決できるようにする
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from common import common  # noqa: E402
 
