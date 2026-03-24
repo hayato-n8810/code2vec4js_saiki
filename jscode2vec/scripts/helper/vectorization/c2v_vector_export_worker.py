@@ -12,7 +12,6 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from config import Config  # noqa: E402
-from tensorflow_model import Code2VecModel  # noqa: E402
 
 
 def run_code2vec_vector_export_worker(model_path: Path, c2v_file: Path) -> Path:
@@ -33,6 +32,9 @@ def run_code2vec_vector_export_worker(model_path: Path, c2v_file: Path) -> Path:
     config.TEST_DATA_PATH = str(c2v_file)
     config.EXPORT_CODE_VECTORS = True
     config.DL_FRAMEWORK = "tensorflow"
+
+    # code2vec_only.py と同様に実行時にモデル実装を読み込む
+    from tensorflow_model import Code2VecModel  # noqa: E402
 
     model = Code2VecModel(config)
     try:
@@ -78,6 +80,9 @@ def export_code_vectors_with_subprocess(
         str(c2v_file),
     ]
     env = os.environ.copy()
+    # process_single_file_worker.sh と同様に TensorFlow ログ抑制・GPUメモリ成長を設定する
+    env.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+    env.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")
     try:
         proc = subprocess.run(
             command,
@@ -94,6 +99,10 @@ def export_code_vectors_with_subprocess(
 
     if proc.returncode != 0:
         stderr = proc.stderr.strip() if proc.stderr else ""
+        if proc.returncode == 124:
+            raise RuntimeError(f"vectorize timeout (>{timeout_sec}s)")
+        if proc.returncode in {137, 143, -9}:
+            raise RuntimeError(f"vectorize killed (OOM or forced kill): code={proc.returncode}")
         raise RuntimeError(f"vectorize failed ({proc.returncode}): {stderr}")
 
     return Path(f"{c2v_file}.vectors")

@@ -15,6 +15,7 @@ from pathlib import Path
 from ..config import (
     EXTRACT_TIMEOUT_SEC,
     INFER_TIMEOUT_SEC,
+    MAX_INFER_PARALLELISM,
     MIN_FILES_FOR_SHM,
     PREPROCESS_MAX_RETRIES,
     HyperParams,
@@ -79,6 +80,7 @@ class JavaScriptVectorizationPipeline:
         self.hyperparams = hyperparams
         self.mode = mode
         self.extract_script = project_root / "JSExtractor" / "extract.py"
+        self._inference_semaphore: threading.Semaphore | None = None
 
     def run_for_single_scope(
         self,
@@ -132,6 +134,11 @@ class JavaScriptVectorizationPipeline:
             if jobs > 1:
                 self._apply_parallel_inference_environment(jobs=jobs, logger=logger)
 
+            inference_jobs = self._resolve_inference_worker_count(jobs=jobs)
+            if inference_jobs < jobs:
+                logger.info("推論同時実行を制限: requested=%s capped=%s", jobs, inference_jobs)
+            self._inference_semaphore = threading.Semaphore(inference_jobs)
+
             if jobs <= 1 or len(js_files) <= 1:
                 for js_file in js_files:
                     json_key = self._build_context_count_key(js_file, source_root)
@@ -167,6 +174,7 @@ class JavaScriptVectorizationPipeline:
                             succeeded += 1
         finally:
             self._restore_environment_variables(shared_memory_env_backup)
+            self._inference_semaphore = None
             if shm_manager is not None:
                 shm_manager.stop_server_if_owner(logger)
 
@@ -236,6 +244,11 @@ class JavaScriptVectorizationPipeline:
             if jobs > 1 and scopes:
                 self._apply_parallel_inference_environment(jobs=jobs, logger=scopes[0][4])
 
+            inference_jobs = self._resolve_inference_worker_count(jobs=jobs)
+            if inference_jobs < jobs and scopes:
+                scopes[0][4].info("推論同時実行を制限: requested=%s capped=%s", jobs, inference_jobs)
+            self._inference_semaphore = threading.Semaphore(inference_jobs)
+
             if jobs <= 1 or len(tasks) <= 1:
                 for scope_name, js_file in tasks:
                     self._run_single_balanced_scope_task(scope_state, scope_name, js_file)
@@ -266,6 +279,7 @@ class JavaScriptVectorizationPipeline:
                             logger.exception("予期しないエラー: %s", js_file)
         finally:
             self._restore_environment_variables(shared_memory_env_backup)
+            self._inference_semaphore = None
             if shm_manager is not None:
                 stop_logger = scopes[0][4] if scopes else logging.getLogger(__name__)
                 shm_manager.stop_server_if_owner(stop_logger)
@@ -530,12 +544,22 @@ class JavaScriptVectorizationPipeline:
         Returns:
             None: ベクトルファイルを生成する。
         """
-        export_code_vectors_with_subprocess(
-            model_path=self._resolve_runtime_resource_path(self.hyperparams.model_path),
-            c2v_file=c2v_file,
-            project_root=self.project_root,
-            timeout_sec=INFER_TIMEOUT_SEC,
-        )
+        if self._inference_semaphore is None:
+            export_code_vectors_with_subprocess(
+                model_path=self._resolve_runtime_resource_path(self.hyperparams.model_path),
+                c2v_file=c2v_file,
+                project_root=self.project_root,
+                timeout_sec=INFER_TIMEOUT_SEC,
+            )
+            return
+
+        with self._inference_semaphore:
+            export_code_vectors_with_subprocess(
+                model_path=self._resolve_runtime_resource_path(self.hyperparams.model_path),
+                c2v_file=c2v_file,
+                project_root=self.project_root,
+                timeout_sec=INFER_TIMEOUT_SEC,
+            )
 
     def _execute_subprocess(self, command: list[str], stdout: object | None = None, timeout: int | None = None) -> None:
         """サブプロセスを実行し失敗時は例外に変換する。
@@ -626,12 +650,29 @@ class JavaScriptVectorizationPipeline:
         os.environ["OMP_NUM_THREADS"] = str(threads_per_process)
         os.environ["MKL_NUM_THREADS"] = str(threads_per_process)
         os.environ["OPENBLAS_NUM_THREADS"] = str(threads_per_process)
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+        os.environ.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")
         logger.info(
             "並列最適化: jobs=%s cpu=%s threads_per_process=%s",
             jobs,
             available,
             threads_per_process,
         )
+
+    @staticmethod
+    def _resolve_inference_worker_count(jobs: int) -> int:
+        """推論サブプロセス同時実行数を決定する。"""
+        env_value = os.environ.get("C2V_MAX_INFER_JOBS")
+        if env_value is not None:
+            try:
+                configured = int(env_value)
+            except ValueError:
+                configured = MAX_INFER_PARALLELISM
+        else:
+            configured = MAX_INFER_PARALLELISM
+
+        configured = max(1, configured)
+        return max(1, min(jobs, configured))
 
     @staticmethod
     def _count_contexts_for_skip_case(raw_file: Path, c2v_file: Path) -> int | None:
