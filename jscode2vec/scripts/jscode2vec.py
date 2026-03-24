@@ -11,11 +11,11 @@ from helper.pipeline import VectorizePipeline, collect_js_files, collect_project
 
 
 def _resolve_default_output_path(input_path: Path, mode: str, project_root: Path) -> Path:
-    # 既定出力は target セグメントを outputs/vec に置換する
+    # 既定出力は targets セグメントを outputs/vec に置換する
     parts = list(input_path.parts)
     replaced = False
     for idx, part in enumerate(parts):
-        if part == "target":
+        if part == "targets":
             parts[idx] = "outputs"
             parts.insert(idx + 1, "vec")
             replaced = True
@@ -27,7 +27,7 @@ def _resolve_default_output_path(input_path: Path, mode: str, project_root: Path
             return replaced_path.parent / input_path.stem
         return replaced_path
 
-    # target が無い場合は outputs/vec/others に退避する
+    # targets が無い場合は outputs/vec/others に退避する
     if mode == "single":
         return project_root / "jscode2vec" / "outputs" / "vec" / "others" / input_path.stem
     return project_root / "jscode2vec" / "outputs" / "vec" / "others" / input_path.name
