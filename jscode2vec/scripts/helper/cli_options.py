@@ -7,13 +7,38 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class CliOptions:
+    """ベクトル化 CLI の実行設定を保持する不変データ構造。
+
+    Args:
+        mode (str): 実行モード。
+        input_path (Path): 入力ファイルまたはディレクトリ。
+        output (Path | None): 出力ディレクトリ。
+        jobs (int): 並列度。
+
+    Raises:
+        None
+
+    Returns:
+        CliOptions: 解析済み CLI オプション。
+    """
     mode: str
     input_path: Path
     output: Path | None
     jobs: int
 
 
-def _build_parser() -> ArgumentParser:
+def _build_vectorization_argument_parser() -> ArgumentParser:
+    """ベクトル化コマンド用の引数パーサーを構築する。
+
+    Args:
+        None
+
+    Raises:
+        None
+
+    Returns:
+        ArgumentParser: ベクトル化 CLI 用 ArgumentParser。
+    """
     parser = ArgumentParser(
         description="JSファイルをcode2vecでベクトル化する",
     )
@@ -41,7 +66,18 @@ def _build_parser() -> ArgumentParser:
     return parser
 
 
-def _resolve_mode(args: Namespace) -> tuple[str, Path]:
+def _resolve_execution_mode_and_input_path(args: Namespace) -> tuple[str, Path]:
+    """解析済み引数から実行モードと入力パスを決定する。
+
+    Args:
+        args (Namespace): argparse の解析結果。
+
+    Raises:
+        None
+
+    Returns:
+        tuple[str, Path]: 実行モードと入力パス。
+    """
     if args.single:
         return "single", Path(args.single).expanduser().resolve()
     if args.project:
@@ -49,11 +85,22 @@ def _resolve_mode(args: Namespace) -> tuple[str, Path]:
     return "all", Path(args.all_projects).expanduser().resolve()
 
 
-def parse_cli(argv: list[str] | None = None) -> CliOptions:
-    parser = _build_parser()
+def parse_vectorization_cli_options(argv: list[str] | None = None) -> CliOptions:
+    """CLI 引数を検証しベクトル化実行オプションへ変換する。
+
+    Args:
+        argv (list[str] | None): 解析対象のコマンドライン引数。
+
+    Raises:
+        SystemExit: argparse のバリデーションエラー時。
+
+    Returns:
+        CliOptions: 解析済みオプション。
+    """
+    parser = _build_vectorization_argument_parser()
     args = parser.parse_args(argv)
 
-    mode, input_path = _resolve_mode(args)
+    mode, input_path = _resolve_execution_mode_and_input_path(args)
 
     if args.jobs < 1:
         parser.error("-j/--jobs は1以上を指定してください")

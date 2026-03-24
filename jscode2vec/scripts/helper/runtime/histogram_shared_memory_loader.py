@@ -6,8 +6,20 @@ import sys
 from multiprocessing import shared_memory
 
 
-def load_histograms_from_shared_memory() -> tuple[dict[str, int], dict[str, int], dict[str, int]] | tuple[None, None, None]:
-    """Load histograms from shared memory if available."""
+def load_histograms_from_configured_shared_memory(
+    ) -> tuple[dict[str, int], dict[str, int], dict[str, int]] | tuple[None, None, None]:
+    """環境変数で指定された共有メモリからヒストグラム辞書を読み込む。
+
+    Args:
+        None
+
+    Raises:
+        None
+
+    Returns:
+        tuple[dict[str, int], dict[str, int], dict[str, int]] | tuple[None, None, None]:
+            共有メモリから読めた場合は語彙ヒストグラム 3 種、読めない場合は (None, None, None)。
+    """
     shm_name = os.environ.get("HISTOGRAM_SHM_NAME")
     shm_size = os.environ.get("HISTOGRAM_SHM_SIZE")
 
@@ -41,4 +53,4 @@ def load_histograms_from_shared_memory() -> tuple[dict[str, int], dict[str, int]
         return None, None, None
 
 
-__all__ = ["load_histograms_from_shared_memory"]
+__all__ = ["load_histograms_from_configured_shared_memory"]

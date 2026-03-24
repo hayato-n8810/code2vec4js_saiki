@@ -10,11 +10,44 @@ import time
 from multiprocessing import shared_memory
 from pathlib import Path
 
-from .histogram_cache import load_histograms_from_cache, load_histograms_from_raw, resolve_dataset_dir
+from .histogram_cache_repository import (
+    load_histograms_from_cache_file,
+    load_histograms_from_raw_files,
+    resolve_histogram_dataset_directory,
+)
 
 
-class HistogramServer:
+class HistogramSharedMemoryServerController:
+    """ヒストグラム共有メモリサーバーの運用処理を統括する。
+
+    Args:
+        dataset_name (str): 対象データセット名。
+        word_vocab_size (int): 単語語彙サイズ。
+        path_vocab_size (int): パス語彙サイズ。
+        target_vocab_size (int): ターゲット語彙サイズ。
+
+    Raises:
+        None
+
+    Returns:
+        HistogramSharedMemoryServerController: サーバー制御インスタンス。
+    """
+
     def __init__(self, dataset_name: str, word_vocab_size: int, path_vocab_size: int, target_vocab_size: int):
+        """サーバー制御に必要なデータセット条件を初期化する。
+
+        Args:
+            dataset_name (str): 対象データセット名。
+            word_vocab_size (int): 単語語彙サイズ。
+            path_vocab_size (int): パス語彙サイズ。
+            target_vocab_size (int): ターゲット語彙サイズ。
+
+        Raises:
+            None
+
+        Returns:
+            None: サーバー制御インスタンスを初期化する。
+        """
         self.dataset_name = dataset_name
         self.word_vocab_size = word_vocab_size
         self.path_vocab_size = path_vocab_size
@@ -22,8 +55,19 @@ class HistogramServer:
         self.shm_name = f"code2vec_histograms_{dataset_name}"
         self.metadata_file = Path(f"/tmp/{self.shm_name}_metadata.json")
 
-    def load_histograms(self) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
-        dataset_dir = resolve_dataset_dir(dataset_name=self.dataset_name)
+    def load_histograms_for_server(self) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+        """サーバー公開用のヒストグラム辞書をキャッシュ優先で読み込む。
+
+        Args:
+            None
+
+        Raises:
+            None
+
+        Returns:
+            tuple[dict[str, int], dict[str, int], dict[str, int]]: サーバー公開用ヒストグラム辞書。
+        """
+        dataset_dir = resolve_histogram_dataset_directory(dataset_name=self.dataset_name)
         cache_file = dataset_dir / "histogram_cache.pkl"
 
         print(f"[INFO] Loading histograms for dataset: {self.dataset_name}")
@@ -31,7 +75,7 @@ class HistogramServer:
         if cache_file.exists():
             print(f"[INFO] Loading from cache: {cache_file}")
             try:
-                cached = load_histograms_from_cache(cache_file)
+                cached = load_histograms_from_cache_file(cache_file)
                 if cached is not None:
                     word_to_count, path_to_count, target_to_count = cached
                     print(
@@ -43,7 +87,7 @@ class HistogramServer:
                 print(f"[WARN] Cache load failed: {exc}, loading from raw files")
 
         print("[INFO] Loading from raw histogram files")
-        word_to_count, path_to_count, target_to_count = load_histograms_from_raw(
+        word_to_count, path_to_count, target_to_count = load_histograms_from_raw_files(
             dataset_dir=dataset_dir,
             dataset_name=self.dataset_name,
             word_vocab_size=self.word_vocab_size,
@@ -57,11 +101,22 @@ class HistogramServer:
         return word_to_count, path_to_count, target_to_count
 
     def start_server(self) -> None:
+        """共有メモリ領域を作成してヒストグラムサーバーを起動する。
+
+        Args:
+            None
+
+        Raises:
+            None
+
+        Returns:
+            None: 共有メモリサーバーを起動し待機する。
+        """
         print(f"\n{'=' * 60}")
         print("  Histogram Shared Memory Server")
         print(f"{'=' * 60}\n")
 
-        word_to_count, path_to_count, target_to_count = self.load_histograms()
+        word_to_count, path_to_count, target_to_count = self.load_histograms_for_server()
         histogram_data = {
             "word_to_count": word_to_count,
             "path_to_count": path_to_count,
@@ -132,6 +187,17 @@ class HistogramServer:
             raise
 
     def stop_server(self) -> None:
+        """稼働中の共有メモリサーバーとメタデータを停止・掃除する。
+
+        Args:
+            None
+
+        Raises:
+            None
+
+        Returns:
+            None: 共有メモリサーバー停止処理を実行する。
+        """
         print(f"[INFO] Stopping histogram server: {self.shm_name}")
 
         if self.metadata_file.exists():
@@ -160,7 +226,18 @@ class HistogramServer:
 
         print("[OK] Server stopped")
 
-    def status(self) -> None:
+    def print_server_status(self) -> None:
+        """メタデータとプロセス状態からサーバー稼働状況を表示する。
+
+        Args:
+            None
+
+        Raises:
+            None
+
+        Returns:
+            None: サーバー稼働状況を標準出力へ表示する。
+        """
         if not self.metadata_file.exists():
             print("[INFO] Server Status: NOT RUNNING")
             return
@@ -180,7 +257,18 @@ class HistogramServer:
             print("  Process: DEAD (stale metadata?)")
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def parse_histogram_server_cli_arguments(argv: list[str] | None = None) -> argparse.Namespace:
+    """ヒストグラムサーバー操作用の CLI 引数を解析する。
+
+    Args:
+        argv (list[str] | None): 解析対象のコマンドライン引数。
+
+    Raises:
+        None
+
+    Returns:
+        argparse.Namespace: 解析済み引数。
+    """
     parser = argparse.ArgumentParser(description="Histogram Shared Memory Server")
     parser.add_argument("command", choices=["start", "stop", "status"], help="Server command")
     parser.add_argument("--dataset", default="js_dataset_min5", help="Dataset name")
@@ -190,9 +278,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    server = HistogramServer(
+def run_histogram_shared_memory_server(argv: list[str] | None = None) -> int:
+    """CLI コマンドに応じて共有メモリサーバー処理を実行する。
+
+    Args:
+        argv (list[str] | None): 実行引数。
+
+    Raises:
+        None
+
+    Returns:
+        int: 正常終了時は 0。
+    """
+    args = parse_histogram_server_cli_arguments(argv)
+    server_controller = HistogramSharedMemoryServerController(
         dataset_name=args.dataset,
         word_vocab_size=args.word_vocab_size,
         path_vocab_size=args.path_vocab_size,
@@ -200,10 +299,14 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.command == "start":
-        server.start_server()
+        server_controller.start_server()
     elif args.command == "stop":
-        server.stop_server()
+        server_controller.stop_server()
     else:
-        server.status()
+        server_controller.print_server_status()
 
     return 0
+
+
+if __name__ == "__main__":
+    sys.exit(run_histogram_shared_memory_server())

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 # scripts/helper からリポジトリルートのモデル実装を import するために検索パスを補う
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -15,7 +15,19 @@ from config import Config  # noqa: E402
 from tensorflow_model import Code2VecModel  # noqa: E402
 
 
-def _run_vectorize_worker(model_path: Path, c2v_file: Path) -> Path:
+def run_code2vec_vector_export_worker(model_path: Path, c2v_file: Path) -> Path:
+    """Code2VecModel を使って単一 c2v 入力からベクトルを書き出す。
+
+    Args:
+        model_path (Path): code2vec モデルパス。
+        c2v_file (Path): 入力 .c2v ファイルパス。
+
+    Raises:
+        None
+
+    Returns:
+        Path: 生成される .vectors ファイルパス。
+    """
     config = Config(set_defaults=True, load_from_args=False, verify=False)
     config.MODEL_LOAD_PATH = str(model_path)
     config.TEST_DATA_PATH = str(c2v_file)
@@ -36,11 +48,30 @@ def _run_vectorize_worker(model_path: Path, c2v_file: Path) -> Path:
     return Path(f"{c2v_file}.vectors")
 
 
-def export_code_vectors(model_path: Path, c2v_file: Path, project_root: Path, timeout_sec: int) -> Path:
+def export_code_vectors_with_subprocess(
+    model_path: Path,
+    c2v_file: Path,
+    project_root: Path,
+    timeout_sec: int,
+) -> Path:
+    """分離プロセスでベクトル出力ワーカーを実行して .vectors を生成する。
+
+    Args:
+        model_path (Path): code2vec モデルパス。
+        c2v_file (Path): 入力 .c2v ファイルパス。
+        project_root (Path): 実行時カレントを合わせるプロジェクトルート。
+        timeout_sec (int): タイムアウト秒数。
+
+    Raises:
+        RuntimeError: ワーカー実行失敗またはタイムアウト時。
+
+    Returns:
+        Path: 生成される .vectors ファイルパス。
+    """
     command = [
         sys.executable,
         "-m",
-        "jscode2vec.scripts.helper.vectorize_engine",
+        "jscode2vec.scripts.helper.vectorization.c2v_vector_export_worker",
         "--model_path",
         str(model_path),
         "--c2v_file",
@@ -68,7 +99,18 @@ def export_code_vectors(model_path: Path, c2v_file: Path, project_root: Path, ti
     return Path(f"{c2v_file}.vectors")
 
 
-def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def parse_vector_export_worker_arguments(argv: list[str] | None = None) -> argparse.Namespace:
+    """ベクトル出力ワーカーの CLI 引数を解析する。
+
+    Args:
+        argv (list[str] | None): 解析対象のコマンドライン引数。
+
+    Raises:
+        None
+
+    Returns:
+        argparse.Namespace: 解析済み引数。
+    """
     parser = argparse.ArgumentParser(description="code2vec vector export worker")
     parser.add_argument("--model_path", required=True)
     parser.add_argument("--c2v_file", required=True)
@@ -76,8 +118,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _parse_args(argv)
-    _run_vectorize_worker(model_path=Path(args.model_path), c2v_file=Path(args.c2v_file))
+    """CLI 引数を受け取りベクトル出力ワーカー本体を起動する。
+
+    Args:
+        argv (list[str] | None): 実行引数。
+
+    Raises:
+        None
+
+    Returns:
+        int: 正常終了時は 0。
+    """
+    args = parse_vector_export_worker_arguments(argv)
+    run_code2vec_vector_export_worker(model_path=Path(args.model_path), c2v_file=Path(args.c2v_file))
     return 0
 
 

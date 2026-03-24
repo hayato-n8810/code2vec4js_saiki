@@ -5,6 +5,27 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class HyperParams:
+    """JS ベクトル化処理で参照する code2vec ハイパーパラメータを表現する。
+
+    Args:
+        max_contexts (int): 1 サンプルあたりの最大 context 数。
+        word_vocab_size (int): 単語語彙サイズ。
+        path_vocab_size (int): パス語彙サイズ。
+        target_vocab_size (int): ターゲット語彙サイズ。
+        max_path_length (int): 抽出パス最大長。
+        max_path_width (int): 抽出パス最大幅。
+        dataset_name (str): データセット名。
+        model_path (str): 推論モデルパス。
+        word_histo (str): 単語ヒストグラムパス。
+        path_histo (str): パスヒストグラムパス。
+        target_histo (str): ターゲットヒストグラムパス。
+
+    Raises:
+        None
+
+    Returns:
+        HyperParams: code2vec 実行パラメータ。
+    """
     max_contexts: int
     word_vocab_size: int
     path_vocab_size: int
@@ -42,4 +63,15 @@ MIN_FILES_FOR_SHM = 2
 
 
 def load_hyperparams() -> HyperParams:
+    """固定定義された JS ベクトル化用ハイパーパラメータを返す。
+
+    Args:
+        None
+
+    Raises:
+        None
+
+    Returns:
+        HyperParams: JS ベクトル化で利用する固定ハイパーパラメータ。
+    """
     return HYPER_PARAMS
