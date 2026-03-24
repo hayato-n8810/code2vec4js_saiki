@@ -217,6 +217,12 @@ python3 jscode2vec/scripts/extract_code_snippets.py -github
 python3 jscode2vec/scripts/extract_code_snippets.py -mb
 ```
 
+**推奨：コード抽出後のフォーマッタの適用**
+```bash
+# dir配下のすべてのjsファイルが対象
+npx prettier --write "{dir}/**/*.js"
+```
+
 ### 3) preload_histograms.py
 
 処理内容:
