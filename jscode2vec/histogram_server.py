@@ -29,7 +29,6 @@ Usage:
 import sys
 import os
 import pickle
-import mmap
 import argparse
 from multiprocessing import shared_memory
 import signal
