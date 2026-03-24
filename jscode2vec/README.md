@@ -1,288 +1,412 @@
-# jscode2vec - Query to Vector Pipeline
+# jscode2vec
 
-このディレクトリには、JavaScriptコード（*.js）を code2vec の入力形式に変換し、学習済みモデルで `.vector` を生成するためのパイプラインスクリプトが含まれています。
+このフォルダは，JavaScript 向け code2vec パイプラインの実験・推論・比較評価を行うためのサブプロジェクトです．
 
-特徴:
+---
 
-- **Shared Memory (SHM) ヒストグラム**: 学習時ヒストグラムを 1 回だけ RAM にロードし、並列ワーカが共有（ディスクI/O/重複メモリを削減）
-- **並列処理**: プロジェクト単位 / ファイル単位の2種類の並列実行スクリプトを提供
-- **出力**: `results/` 配下に `.c2v` / `.vector` / ログを保存
+## プロジェクト全体のディレクトリ構成
 
-## ファイル構成
+リポジトリ全体（要約）:
 
-### メインスクリプト
-
-- **`jscode2vec_parallel.sh`** - 複数プロジェクトを**プロジェクト単位**で並列処理（SHMヒストグラム）
-- **`process_project_worker.sh`** - `jscode2vec_parallel.sh` のワーカ（1プロジェクト内の *.js を順次処理）
-- **`jscode2vec_file_parallel_shm.sh`** - *.js を**ファイル単位**で並列処理（SHMヒストグラム）
-- **`process_single_file_worker.sh`** - `jscode2vec_file_parallel_shm.sh` のワーカ（1ファイル処理）
-- **`jscode2vec_one_project.sh`** - 単一ディレクトリ（=1プロジェクト相当）を逐次処理
-
-### サポートスクリプト
-
-- **`code2vec_only.py`** - code2vecモデルを使用してコードベクトルをエクスポート
-- **`preprocess_test.py`** - テストデータを前処理してcode2vec形式に変換
-- **`preload_histograms.py`** - ヒストグラムの事前ロード・キャッシュ化（`histogram_cache.pkl` を作成）
-- **`histogram_server.py`** - ヒストグラムを Shared Memory に載せて共有するサーバ（各並列スクリプトが自動起動/再利用）
-- **`extract_code_snippets.py`** - JSONファイルからコードスニペットを抽出
-- **`build_trainHist.sh`** - 学習用ヒストグラムデータを構築
-- **`calculate_similarity.py`** - ベースベクトルとの類似度（コサイン）を計算してJSON出力（id_1〜id_6 を固定で処理）
-- **`similarity_sort_file.py`** - 類似度上位/下位のJSファイルをコピー
-
-## Docker環境でのパス構造
-
-```
-/code2vec/                      # プロジェクトルート（./がマウント）
-├── jscode2vec/                     # このディレクトリ
-│   ├── jscode2vec_parallel.sh
-│   ├── jscode2vec_file_parallel_shm.sh
-│   ├── process_project_worker.sh
-│   ├── process_single_file_worker.sh
-│   ├── histogram_server.py
-│   ├── code2vec_only.py
-│   └── ...
-├── data/                       # データディレクトリ
-│   └── js_dataset_min5/
-│       ├── *.histo.*.c2v      # ヒストグラムファイル
-│       └── histogram_cache.pkl # キャッシュファイル
-├── models/                     # モデルディレクトリ
-│   └── js_dataset_min5/
-│       └── saved_model_iter19.release
-├── JSExtractor/                # JavaScript抽出器
-│   └── extract.py
-└── results/                    # 出力ディレクトリ
-  ├── {project_name}/
-  │   ├── c2v/               # .c2v / .raw / context_count.json
-  │   ├── vectors/           # .vector
-  │   └── process.log        # ログ
-  └── {base_dir_name}/{project_name}/  # ファイル単位並列の出力（後述）
-
-/data/                          # 外部データマウントポイント
-└── sampling/train/             # 学習データ（build_trainHist.sh用）
-
-/code2vec/jscode2vec/similarity/    # 類似度計算結果（bachelor配下）
-└── bachelor/id_{n}/id_{n}_similarity.json
+```text
+code2vec4js_saiki/
+├── CSharpExtractor/
+├── JSExtractor/
+├── JavaExtractor/
+├── data/
+├── models/
+├── jscode2vec/
+├── Dockerfile
+├── docker-compose.yml
+├── DOCKER_USAGE.md
+└── (学習・推論用の Python スクリプト群)
 ```
 
-## 使用方法
+**jscode2vec 配下 （データも含めた完全版はbrain-2にあります）:**
 
-### Docker環境での実行
+```text
+jscode2vec/
+├── data/
+│   ├── github/
+│   ├── microbenchmark/
+│   └── origin_pattern/ 
+│       └── id{1 ~ 6}/
+│           ├── code/ パターン元 slow コード片
+│           └── vectors/ codeのcode2vecベクトル
+├── targets/ ベクトル化対象
+│   ├── github/　codeQLによる検出結果コード片
+│   └── microbenchmark/  codeQLによる検出結果コード片
+├── outputs/
+│   ├── vec/
+│   │   ├── github/
+│   │   └── microbenchmark/
+│   └── similarity/
+│       ├── github/
+│       └── microbenchmark/
+└── scripts/
+    ├── build_trainHist.sh
+    ├── extract_code_snippets.py
+    ├── jscode2vec.py
+    ├── preload_histograms.py
+    ├── github_similarity.py
+    ├── microbenchmark_similarity.py
+    └── helper/
+```
+
+---
+
+## Docker前提について
+
+このプロジェクトは Docker 環境での実行を前提に設計されています．
+
+- コンテナ作業ディレクトリは `/code2vec` を想定しています．
+-  `/code2vec/...` 形式の絶対パスをデフォルト値として使用することを推奨します．
+- Docker の手順と環境情報は `DOCKER_USAGE.md`，`docker-compose.yml`，`Dockerfile` に定義されています．
+
+最小セットアップ:
 
 ```bash
-# Dockerコンテナ内で実行
-docker exec -it code2vec4js bash
-
-# 並列処理（複数プロジェクト / プロジェクト単位・推奨）
-cd /code2vec/jscode2vec
-./jscode2vec_parallel.sh /absolute/path/to/target_dir_js [max_parallel_jobs]
-
-# 並列処理（ファイル単位：大量ファイル向け）
-./jscode2vec_file_parallel_shm.sh /absolute/path/to/target_dir_js [max_parallel_jobs]
-
-# 単一プロジェクト処理
-./jscode2vec_one_project.sh /absolute/path/to/project_dir
-
-# ヒストグラムの事前ロード（任意・初回のみ推奨）
-python3 /code2vec/jscode2vec/preload_histograms.py --dataset js_dataset_min5
-
-# 学習用ヒストグラム構築
-# /data/sampling/train を入力としてヒストグラムを生成
-PYTHON=python3 ./build_trainHist.sh
-
-# 類似度計算
-# id_1〜id_6 を固定で処理（詳細は「類似度計算」参照）
-python3 /code2vec/jscode2vec/calculate_similarity.py
+docker compose build
+docker compose up -d
+docker compose exec code2vec bash
 ```
 
-### 入力・出力例
+---
 
-**入力構造:**
-```
-/path/to/target_dir_js/
-  project1/
-    project1_0.js
-    project1_1.js
-  project2/
-    project2_0.js
-```
+## このフォルダでできること
 
-**出力構造（プロジェクト単位並列 / 単一プロジェクト）:**
-```
-/code2vec/results/
-  project1/
-    c2v/
-      project1_0.test.raw.txt
-      project1_0.test.c2v
-      context_count.json
-    vectors/
-      project1_0.vector
-      project1_1.vector
-    process.log
-  project2/
-    ...
-```
+- CodeQL 等で作成した JSON から JavaScript スニペットを抽出する．
+- 単一ファイル，単一プロジェクト，複数プロジェクト単位で code2vec を用いてJavaScriptファイルを ベクトル化する．
+- origin pattern と GitHub/microbenchmark のベクトル類似度を計算する．
+- ヒストグラムを事前キャッシュし，推論の初期ロード時間を短縮する．
 
-**出力構造（ファイル単位並列）:**
-`target_dir_js` のベースディレクトリ名（例: `id_222_toRepo`）を `base_dir_name` として、以下の構造で出力します。
+---
 
-```
-/code2vec/results/
-  {base_dir_name}/
-    project1/
-      c2v/
-      vectors/
-      process.log
-```
+## 実行フロー
 
-※ジョブログ:
+1. JSON からコード抽出
+2. 必要に応じてヒストグラム事前キャッシュ作成
+3. JS ファイルをベクトル化
+4. 類似度計算
+5. 出力 JSON を集計・分析
 
-- プロジェクト単位並列: `/code2vec/results/parallel_projects_shm.log`
-- ファイル単位並列: `/code2vec/results/parallel_jobs_shm.log`
+---
 
-## 主要な設定値
+## 出力形式
 
-以下の設定値は学習済みモデル（`js_dataset_min5`）と整合している必要があります：
+### ベクトル出力
 
-```bash
-MAX_CONTEXTS=200
-WORD_VOCAB_SIZE=1301136
-PATH_VOCAB_SIZE=911417
-TARGET_VOCAB_SIZE=261245
-```
+- 拡張子: `.vector`
+- 中身: 空白区切り浮動小数点列
+- 主な出力先:
+  - `jscode2vec/outputs/vec/github/id_{id}/.../vectors/*.vector`
+  - `jscode2vec/outputs/vec/microbenchmark/id_{id}/vectors/*.vector`
 
-各スクリプトは上記を環境変数として上書き可能です（例: `MAX_CONTEXTS=100 ./jscode2vec_parallel.sh ...`）。
+### 類似度出力 JSON
 
-追加でよく使う環境変数:
+主なキー:
 
-```bash
-PYTHON_BIN=python3
-MODEL_PATH=/code2vec/models/js_dataset_min5/saved_model_iter19.release
-```
+- `total_count`: 出力件数
+- `results`: 類似度結果の配列
+  - `file`: 対象ファイル名（拡張子なし stem）
+  - `cos_similarity`: origin ごとのコサイン類似度辞書を 1 要素配列で保持
+  - `mean`: 類似度平均
+  - `var`: 類似度分散
 
-## 依存関係
-
-- Python 3.x
-- TensorFlow 2.13.0
-- GNU parallel
-- GNU coreutils（`timeout` コマンド）
-- `bc`（SHMサーバ起動時のMB表示に使用）
-- Node.js 18.x（JSExtractor用）
-
-## 注意事項
-
-1. **パス指定**: すべてのスクリプトはDocker環境の絶対パス（`/code2vec/...`）を使用
-2. **モジュールインポート**: Pythonスクリプトは親ディレクトリ（`/code2vec`）のモジュールを参照
-3. **並列実行**: `jscode2vec_parallel.sh` / `jscode2vec_file_parallel_shm.sh` はCPUコア数を検出し、並列ジョブ数を自動決定します（引数で上書き可能）
-4. **SHMサーバ**: 並列スクリプトは `histogram_server.py` を自動起動し、既に起動済みなら再利用します（`/tmp/code2vec_histograms_*_metadata.json` を参照）
-5. **キャッシュ**: `preload_histograms.py` により `histogram_cache.pkl` を作成すると、SHMサーバの起動が高速化されます
-
-## トラブルシューティング
-
-### モジュールが見つからないエラー
-```bash
-# sys.path.insert()により自動的に親ディレクトリが追加されます
-# 手動でPYTHONPATHを設定する場合:
-export PYTHONPATH=/code2vec:$PYTHONPATH
-```
-
-### ヒストグラムキャッシュの再生成
-```bash
-# キャッシュファイルを削除して再生成
-rm /code2vec/data/js_dataset_min5/histogram_cache.pkl*
-python3 /code2vec/jscode2vec/preload_histograms.py --dataset js_dataset_min5
-```
-
-### `timeout` が見つからない
-Docker外（macOSホストなど）で直接実行すると `timeout` が無い場合があります。基本はDockerコンテナ内で実行してください。
-
-### 並列処理の調整
-```bash
-# 並列ジョブ数を手動指定（CPUコア数に応じて調整）
-./jscode2vec_parallel.sh /path/to/target 8  # 8並列で実行
-```
-
-## 類似度計算
-
-### 基本的な使い方
-
-`jscode2vec/origin_pattern/id_{n}/vectors` 配下のベースベクトル（複数）と、
-`results/id_{n}_toRepo` 配下のターゲットベクトル（複数）とのコサイン類似度を計算します。
-各ターゲットファイルについて、複数のベースベクトルとの類似度・平均値・分散を算出し、`mean` の降順でソートして保存します。
-
-```bash
-# Docker環境で実行
-cd /code2vec/jscode2vec
-
-# id_1〜id_6 を順に処理してJSONを出力
-python3 calculate_similarity.py
-```
-
-### 前提条件
-
-類似度計算を実行する前に、以下のディレクトリにベースとなる `.vector` を配置してください。
-
-- `/code2vec/jscode2vec/origin_pattern/id_1/vectors/*.vector`
-- `/code2vec/jscode2vec/origin_pattern/id_2/vectors/*.vector`
-- ...
-- `/code2vec/jscode2vec/origin_pattern/id_6/vectors/*.vector`
-
-ターゲット側はデフォルトで次を参照します（スクリプト内で固定）:
-
-- `/code2vec/results/id_1_toRepo/**/vectors/*.vector`
-- ...
-- `/code2vec/results/id_6_toRepo/**/vectors/*.vector`
-
-### 出力形式
-
-結果は次の場所に保存されます。
-
-- `/code2vec/jscode2vec/similarity/bachelor/id_{n}/id_{n}_similarity.json`
+例:
 
 ```json
 {
-  "total_count": 1523,
+  "total_count": 2,
   "results": [
     {
-      "file": "project1_123",
+      "file": "slow_10",
       "cos_similarity": [
         {
-          "jsperf_222": 0.9876,
-          "jsperf_232": 0.9854,
-          "jsperf_239": 0.9901
+          "block_slow_1": 0.8123,
+          "block_slow_2": 0.7345
         }
       ],
-      "mean": 0.9877,
-      "var": 0.0000456
-    },
-    {
-      "file": "project2_456",
-      "cos_similarity": [
-        {
-          "jsperf_222": 0.9543,
-          "jsperf_232": 0.9521,
-          "jsperf_239": 0.9567
-        }
-      ],
-      "mean": 0.9544,
-      "var": 0.0000432
+      "mean": 0.7734,
+      "var": 0.0015
     }
   ]
 }
 ```
 
-- `file`: プロジェクト名_ID（例: `wuchangming-spy-debugger_0`）
-- `cos_similarity`: 各ベースベクトルとのコサイン類似度の辞書
-- `mean`: コサイン類似度の平均値
-- `var`: コサイン類似度の分散
-- 結果は`mean`の降順でソート済み
+---
 
-### カスタマイズ
+## scripts直下のプログラム詳細
 
-ベース/ターゲットのディレクトリを変更する場合は、`calculate_similarity.py` の `main()` 内の以下を編集してください（現状、コマンドライン引数は参照しません）。
+### 1)  build_trainHist.sh
 
-```python
-# main()関数内
-base_vectors_dir = script_dir / 'origin_pattern' / f'id_{id_num}' / 'vectors'
-target_dir = str(script_dir.parent / 'results' / f'id_{id_num}_toRepo')
+処理内容:
+
+- 学習データから AST path を抽出し，語彙ヒストグラムを生成します．
+- **卒論では，才木データを利用しているため実行しなくて良い**
+- 生成対象:
+  - `${DATASET_NAME}.histo.ori.c2v`
+  - `${DATASET_NAME}.histo.path.c2v`
+  - `${DATASET_NAME}.histo.tgt.c2v`
+
+主な入出力:
+
+- 入力ディレクトリ（固定）: `/data/sampling/train`
+- 出力先（固定）: `/code2vec/data/${DATASET_NAME}`
+
+オプション:
+
+- CLI オプションはありません．
+- 実行時に `PYTHON` 環境変数で Python 実行コマンドが必要です．
+
+実行例:
+
+```bash
+cd /code2vec
+PYTHON=python3 bash jscode2vec/scripts/build_trainHist.sh
 ```
 
+### 2) extract_code_snippets.py
+
+処理内容:
+
+- JSON の `results[*].code_snippet` を `.js` として保存します．
+- 単体モード／GitHub一括モード／microbenchmark一括モードをサポートします．
+
+実行コマンド:
+
+```bash
+python3 jscode2vec/scripts/extract_code_snippets.py [input_json_file] [output_dir] [-github] [-mb]
+```
+
+オプション:
+
+- `input_json_file`（位置引数，任意）
+  - 単体モードで使用する入力 JSON ファイル
+- `output_dir`（位置引数，任意）
+  - 単体モードの出力ベースディレクトリ
+- `-github`（フラグ）
+  - `/code2vec/json2vec/data/github/id_*/` を一括処理
+- `-mb`（フラグ）
+  - `/code2vec/json2vec/data/microbenchmark/id_*_code.json` を一括処理
+
+注意:
+
+- `-github` と `-mb` は同時指定不可です．
+- 一括モードでは位置引数を指定できません．
+- 一括モードの固定パスは `json2vec` を参照する実装です．
+
+入出力:
+
+- 入力 JSON 例: `{"results": [{"id": 1, "code_snippet": "..."}]}`
+- 単体モード出力: `{output_dir}/{project_name}/{project_name}_{id}.js`
+- `-mb` 出力: `file_path` の basename をそのままファイル名に使用
+
+実行例:
+
+```bash
+# 単体モード
+python3 jscode2vec/scripts/extract_code_snippets.py \
+  /code2vec/jscode2vec/data/microbenchmark/id_1_code.json \
+  /code2vec/jscode2vec/targets/microbenchmark
+
+# GitHub 一括モード
+python3 jscode2vec/scripts/extract_code_snippets.py -github
+
+# microbenchmark 一括モード
+python3 jscode2vec/scripts/extract_code_snippets.py -mb
+```
+
+### 3) preload_histograms.py
+
+処理内容:
+
+- 語彙ヒストグラムを読み込み，実行時キャッシュを生成・更新します．
+- 個別に実行する補助スクリプトで，実行は任意
+
+実行コマンド:
+
+```bash
+python3 jscode2vec/scripts/preload_histograms.py [options]
+```
+
+オプション:
+
+- `-d`, `--dataset`（既定: `js_dataset_min5`）
+  - データセット名
+- `-wvs`, `--word_vocab_size`（既定: `1301136`）
+  - 単語語彙サイズ
+- `-pvs`, `--path_vocab_size`（既定: `911417`）
+  - パス語彙サイズ
+- `-tvs`, `--target_vocab_size`（既定: `261245`）
+  - ターゲット語彙サイズ
+
+入出力:
+
+- 入力: `dataset_name` に対応するヒストグラムファイル群
+- 出力: ヒストグラムキャッシュファイル（作成先は helper/runtime 実装依存）
+
+実行例:
+
+```bash
+python3 jscode2vec/scripts/preload_histograms.py
+python3 jscode2vec/scripts/preload_histograms.py -d js_dataset_min5 -wvs 1301136 -pvs 911417 -tvs 261245
+```
+
+### 4) **jscode2vec.py**
+
+処理内容:
+
+- JS ファイル群を code2vec 推論にかけ，`.vector` を出力します．
+- モード:
+  - single（単一ファイル）
+  - project（単一ディレクトリ）
+  - all（親ディレクトリ配下の子プロジェクト一括）
+
+実行コマンド:
+
+```bash
+python3 jscode2vec/scripts/jscode2vec.py (-s FILE | -p DIR | --all DIR) [-o OUT] [-j N]
+```
+
+オプション:
+
+- `-s`, `--single`
+  - 単一 JS ファイルを指定
+- `-p`, `--project`
+  - JS ファイルを含む単一フォルダを指定
+- `--all`
+  - 子プロジェクトを複数含む親フォルダを指定
+- `-o`, `--output`
+  - 出力先ベースパス（省略時は `targets` を `outputs/vec` に置換）
+- `-j`, `--jobs`（既定: `1`）
+  - 並列処理数（project/all で有効）
+
+入出力:
+
+- 入力: `.js` ファイル
+- 出力:
+  - `.vector` ファイル群
+  - `process.log`（各スコープ出力ディレクトリ配下）
+
+実行例:
+
+```bash
+# single
+python3 jscode2vec/scripts/jscode2vec.py \
+  -s /code2vec/jscode2vec/targets/microbenchmark/id_1/slow_10.js
+
+# project
+python3 jscode2vec/scripts/jscode2vec.py \
+  -p /code2vec/jscode2vec/targets/microbenchmark/id_1 \
+  -j 4
+
+# all
+python3 jscode2vec/scripts/jscode2vec.py \
+  --all /code2vec/jscode2vec/targets/github/id_3 \
+  -j 4
+```
+
+### 5) github_similarity.py
+
+処理内容:
+
+- GitHub 側ベクトルと origin pattern ベクトルのコサイン類似度を計算します．
+- 結果は `mean` 降順でソートして保存します．
+
+実行コマンド:
+
+```bash
+python3 jscode2vec/scripts/github_similarity.py [options]
+```
+
+オプション:
+
+- `--id`（任意）
+  - 対象 ID（例: `1`）
+  - 省略時は `1..6` を順に処理
+- `--root`（既定: `/code2vec/jscode2vec`）
+  - jscode2vec ルートディレクトリ
+
+入出力:
+
+- 入力:
+  - `{root}/outputs/vec/github/id_{id}/**/vectors/*.vector`
+  - `{root}/data/origin_pattern/id_{id}/vectors/*.vector`
+- 出力:
+  - `{root}/outputs/similarity/github/id_{id}_similarity.json`
+
+実行例:
+
+```bash
+# IDを1つだけ計算
+python3 jscode2vec/scripts/github_similarity.py --id 1 --root /code2vec/jscode2vec
+
+# ID 1..6 をまとめて計算
+python3 jscode2vec/scripts/github_similarity.py --root /code2vec/jscode2vec
+```
+
+### 6) microbenchmark_similarity.py
+
+処理内容:
+
+- microbenchmark 側ベクトルと origin pattern ベクトルのコサイン類似度を計算します．
+- 同じ file_id の組み合わせ（`slow_x` と `block_slow_x`）は除外します．
+
+実行コマンド:
+
+```bash
+python3 jscode2vec/scripts/microbenchmark_similarity.py [options]
+```
+
+オプション:
+
+- `--id`（任意）
+  - 対象 ID（例: `1`）
+  - 省略時は `1..6` を順に処理
+- `--root`（既定: `/code2vec/jscode2vec`）
+  - jscode2vec ルートディレクトリ
+
+入出力:
+
+- 入力:
+  - `{root}/outputs/vec/microbenchmark/id_{id}/vectors/*.vector`
+  - `{root}/data/origin_pattern/id_{id}/vectors/*.vector`
+- 出力:
+  - `{root}/outputs/similarity/microbenchmark/id_{id}_similarity.json`
+
+実行例:
+
+```bash
+# IDを1つだけ計算
+python3 jscode2vec/scripts/microbenchmark_similarity.py --id 1 --root /code2vec/jscode2vec
+
+# ID 1..6 をまとめて計算
+python3 jscode2vec/scripts/microbenchmark_similarity.py --root /code2vec/jscode2vec
+```
+
+## helper/config.py の説明
+
+`jscode2vec/scripts/helper/config.py` は，JS ベクトル化パイプラインの実行時定数を一元管理する設定ファイルです．
+
+### 定義されている主な内容
+
+- `HyperParams` データクラス
+  - `max_contexts`, `max_path_length`, `max_path_width`
+  - `word_vocab_size`, `path_vocab_size`, `target_vocab_size`
+  - `dataset_name`
+  - `model_path`, `word_histo`, `path_histo`, `target_histo`
+- `HYPER_PARAMS`
+  - 実際に利用する既定値セット
+- 運用制御パラメータ
+  - `EXTRACT_TIMEOUT_SEC`
+  - `INFER_TIMEOUT_SEC`
+  - `PREPROCESS_MAX_RETRIES`
+  - `MIN_FILES_FOR_SHM`
+- `load_hyperparams()`
+  - `HYPER_PARAMS` を返す関数
+
+### 注意点
+
+- 既定のモデル・ヒストグラムパスは `/code2vec/...` を前提にしています．
+- Docker 外で実行する場合はこのファイルのパス定義を環境に合わせて変更してください．

@@ -19,6 +19,7 @@ tmp/
 
 # 結果
 **/results/**
+**/outputs/**
 
 # テスト用
 **/targets/**

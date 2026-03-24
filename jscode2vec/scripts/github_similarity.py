@@ -175,7 +175,7 @@ if __name__ == "__main__":
 		try:
 			print(f"\n[INFO] Processing id_{id_num}")
 			output_data = calculate_for_id(id_num=id_num, root_dir=root_dir)
-			output_path = root_dir / "outputs" / "similarity" / "github" / f"id_{id_num}_similarity_test.json"
+			output_path = root_dir / "outputs" / "similarity" / "github" / f"id_{id_num}_similarity.json"
 			save_json(output_data, output_path)
 		except Exception as e:
 			print(f"[ERROR] id_{id_num} failed: {e}", file=sys.stderr)

@@ -2,6 +2,17 @@
 
 ## 更新内容（2025年10月25日）
 
+## 重要: 現在のdocker-compose.ymlはserver実行前提
+
+現在の `docker-compose.yml` は，ローカルPC向けの最小構成ではなく，server 上での実行を前提とした設定です．
+
+- GPU 前提設定が有効化済み（`runtime: nvidia`, `NVIDIA_VISIBLE_DEVICES=all`）
+- CPU/メモリの `deploy.resources` が高めに設定済み（多並列処理向け）
+- `shm_size: 64gb` を確保（ヒストグラム共有メモリ用途）
+- データボリュームに server 固有パス（`/mnt/data1/hayato-n/dataset/data/jsPerf:/data`）を使用
+
+そのため，別環境で動かす場合は `docker-compose.yml` のボリューム，GPU設定，リソース制限を環境に合わせて調整してください．
+
 ## 動作環境
 
 ### インストールされているソフトウェア
@@ -126,7 +137,7 @@ docker compose exec code2vec python3 code2vec.py \
 
 ## GPU対応
 
-GPU（NVIDIA）を使用する場合は、`docker-compose.yml`の以下の行のコメントを解除してください：
+現在の `docker-compose.yml` では GPU（NVIDIA）設定が有効化済みです：
 
 ```yaml
 runtime: nvidia
@@ -134,7 +145,7 @@ environment:
   - NVIDIA_VISIBLE_DEVICES=all
 ```
 
-その後、コンテナを再起動：
+設定変更後はコンテナを再起動してください：
 
 ```bash
 docker compose down
@@ -147,8 +158,8 @@ docker-compose.ymlでは以下のボリュームがマウントされていま�
 
 ```yaml
 volumes:
-  - ./:/code2vec/                              # プロジェクト全体
-  - /mnt/data1/kazuya-s/dataset/data/jsPerf:/data  # データセット（環境に応じて変更）
+  - ./:/code2vec/                                  # プロジェクト全体
+  - /mnt/data1/hayato-n/dataset/data/jsPerf:/data # server上のデータセット
 ```
 
 データセットのパスは環境に応じて変更してください。存在しないパスの場合はコメントアウトするか、適切なパスに変更してください。
@@ -206,7 +217,7 @@ docker compose up -d
 ```yaml
 volumes:
   - ./:/code2vec/
-  # - /mnt/data1/kazuya-s/dataset/data/jsPerf:/data  # この行をコメントアウト
+  # - /mnt/data1/hayato-n/dataset/data/jsPerf:/data  # この行をコメントアウト
 ```
 
 ## まとめ
